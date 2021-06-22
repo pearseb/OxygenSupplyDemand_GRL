@@ -1,0 +1,69 @@
+set mem/size=5000
+
+can data/all
+can var/all
+can reg/all
+
+use ETOPO_o2_Oyr_ACCESS-ESM1-5_historical_r1i1p1f1_gn_1951-2014.nc
+use ETOPO_o2sat_Oyr_ACCESS-ESM1-5_historical_r1i1p1f1_gn_1951-2014.nc
+use ETOPO_agessc_Oyr_ACCESS-ESM1-5_historical_r1i1p1f1_gn_1951-2014.nc
+use ETOPO_intpp_Oyr_ACCESS-ESM1-5_historical_r1i1p1f1_gn_1951-2014.nc
+
+define grid/like=o2[d=1] grd
+
+let oxy = o2[d=1]*1e3
+let sol = o2sat[d=2,gt=grd@asn]
+let aou = sol-oxy
+let wma = agessc[d=3,gt=grd@asn]
+let npp = intpp[d=4,gt=grd@asn]*86400*365*12
+
+set reg/z=200:1000/l=25:64
+
+let oxy_tre = (oxy[z=@ave,l=55:64@ave] - oxy[z=@ave,l=25:34@ave])/30.0*10
+let sol_tre = (sol[z=@ave,l=55:64@ave] - sol[z=@ave,l=25:34@ave])/30.0*10
+let aou_tre = (aou[z=@ave,l=55:64@ave] - aou[z=@ave,l=25:34@ave])/30.0*10
+let wma_tre = (wma[z=@ave,l=55:64@ave] - wma[z=@ave,l=25:34@ave])/30.0*10
+let npp_tre = (npp[l=55:64@ave] - npp[l=25:34@ave])/30.0*10
+
+
+let aou_zave = aou[z=@ave]
+let wma_zave = wma[z=@ave]
+
+! calculate correlations
+let wma_xmxhat = wma_zave - wma_zave[l=@ave]
+let wma_ymyhat = aou_zave - aou_zave[l=@ave]
+let wma_num1 = wma_xmxhat * wma_ymyhat
+let wma_num = wma_num1[l=@sum]
+let wma_xmxhat2 = wma_xmxhat*wma_xmxhat
+let wma_ymyhat2 = wma_ymyhat*wma_ymyhat
+let wma_dem = (wma_xmxhat2[l=@sum] * wma_ymyhat2[l=@sum])^0.5
+let wma_r = wma_num/wma_dem
+
+let npp_xmxhat = npp - npp[l=@ave]
+let npp_ymyhat = aou_zave - aou_zave[l=@ave]
+let npp_num1 = npp_xmxhat * npp_ymyhat
+let npp_num = npp_num1[l=@sum]
+let npp_xmxhat2 = npp_xmxhat*npp_xmxhat
+let npp_ymyhat2 = npp_ymyhat*npp_ymyhat
+let npp_dem = (npp_xmxhat2[l=@sum] * npp_ymyhat2[l=@sum])^0.5
+let npp_r = npp_num/npp_dem
+
+
+! calculate slope of relationship at each grid point
+let wma_std = wma_zave[l=@std]
+let aou_std = aou_zave[l=@std]
+let npp_std = npp[l=@std]
+let wma_slope = wma_r * (aou_std/wma_std)
+let npp_slope = npp_r * (aou_std/npp_std)
+
+
+save/clobber/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" oxy_tre
+save/append/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" sol_tre
+save/append/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" aou_tre
+save/append/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" wma_tre
+save/append/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" npp_tre
+save/append/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" wma_r, wma_slope, wma_std
+save/append/file="ACCESS-ESM1-5_historical_trends_and_correlations.nc" npp_r, npp_slope, npp_std
+
+
+

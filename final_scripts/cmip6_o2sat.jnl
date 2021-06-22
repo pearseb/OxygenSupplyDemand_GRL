@@ -1,0 +1,70 @@
+!                                       by:  Edward T Peltzer, MBARI
+!                                             revised:  2013 Sep 23.
+!
+! CALCULATE OXYGEN CONCENTRATION AT SATURATION
+!
+! Source:  Garcia & Gordon (1992).  Oxygen solubility in seawater:
+!          Better fitting equations.  L&O 37: 1307-1312.
+!
+! Input:       S = Salinity (pss-78)
+!              T = Temp (deg C)
+!
+! Output:      Oxygen saturation at one atmosphere (umol/kg).
+!
+!                        O2 = o2satv2b(S,T).
+
+
+! DEFINE CONSTANTS, ETC FOR SATURATION CALCULATION
+
+!  The constants used are for units of umol O2/kg.
+
+!!! ($1) = temperature netcdf
+!!! ($2) = salinity netcdf
+!!! ($3) = returned oxygen saturation netcdf
+
+set mem/size=5000
+
+
+use ($1)
+use ($2)
+
+let temp = thetao[d=1]
+let salt = so[d=2]
+
+let A0 = 2.00856
+let A1 = 3.22400
+let A2 = 3.99063
+let A3 = 4.80299
+let A4 = 9.78188e-1 
+let A5 = 1.71069
+
+let B0 = -6.24097e-3
+let B1 = -6.93498e-3
+let B2 = -6.90358e-3
+let B3 = -4.29155e-3
+
+let C0 = -3.11680e-7
+
+let atcox  = 0.20946			! units atm
+let o2atm  = 1. / ( 1000. * 0.20946 )	!
+let oxyco  = 1. / 22.4144		! converts from liters of an ideal gas to moles
+
+let tem0 = 15.0
+let sal0 = 35.0
+
+!   Calculate Ts from T (deg C)
+let Ts = ln((298.15 - temp) / (273.15 + temp))
+let Ts2 = Ts*Ts
+let Ts3 = Ts2*Ts
+let Ts4 = Ts3*Ts
+let Ts5 = Ts4*Ts
+
+!   Calculate O2 saturation in umol O2/kg
+let A = A0 + A1*Ts + A2*Ts2 + A3*Ts3 + A4*Ts4 + A5*Ts5
+let B = salt * (B0 + B1*Ts + B2*Ts2 + B3*Ts3) 
+let C = C0*salt*salt
+
+let o2sat = exp(A+B+C) * atcox*o2atm*oxyco*1e6
+ 
+save/clobber/file="($3)" o2sat 
+

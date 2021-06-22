@@ -1,0 +1,22 @@
+can data/all
+can var/all
+can reg/all
+
+use "/mnt/data2/users/pearseb/NEMO_OUT/JRA55_pic/ETOPO_JRA55_pic_1m_grid_T_1958-2019.nc"
+use "/mnt/data2/users/pearseb/NEMO_OUT/JRA55_pic/ETOPO_JRA55_pic_1m_CFCs_T_1958-2019.nc"
+
+let temp = if so[d=1] eq 0 then 1/0 else thetao[d=1]
+let salt = if so[d=1] eq 0 then 1/0 else so[d=1]
+
+go /users/pearseb/sol_cfcs_sf6.jnl temp salt
+
+let pCFC11 = CFC11[d=2]/sol_CFC11
+let pCFC12 = CFC12[d=2]/sol_CFC12
+let pSF6 = SF6[d=2]/sol_SF6
+
+
+set mem/size=10000
+
+!save/clobber/file="ETOPO_JRA55_pic_1m_pCFC11_T_1958-2019.nc" pCFC11
+save/clobber/file="ETOPO_JRA55_pic_1m_pCFC12_T_1958-2019.nc" pCFC12
+save/clobber/file="ETOPO_JRA55_pic_1m_pSF6_T_1958-2019.nc" pSF6

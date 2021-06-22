@@ -1,0 +1,267 @@
+set mem/size=2000
+
+can data/all
+can var/all
+can reg/all
+
+use ./woa18_7584_temp_ave.nc
+use ./woa18_7584_salt_ave.nc
+use ./woa18_A5B7_temp_ave.nc
+use ./woa18_A5B7_salt_ave.nc
+use ./o2_aan_mcl1950-2016_0147_QC3.nc
+use ETOPO_JRA55_ndep_1y_oxygen_T_1972-2019.nc
+use ETOPO_JRA55_pic_1y_ts_T_1972-2019.nc
+use ETOPO_JRA55_pic_1y_age_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_reminnitr_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_prod_T_1972-2019.nc
+
+
+let oxy_m = if abioo2[d=6] eq 0 then 1/0 else o2[d=6]
+let ao2_m = if abioo2[d=6] eq 0 then 1/0 else abioo2[d=6]
+let tou_m = ao2_m - oxy_m
+let age_m = if abioo2[d=6] eq 0 then 1/0 else age[d=8]
+let rem = remin[d=9]*(133/122.0) + nitr[d=9]*2.0 - (ppphyn[d=10]+ppphyd[d=10])*(133/122.0)
+let rdem_m = if abioo2[d=6] eq 0 then 1/0 else rem*1e3*86400*365
+let dem_m = age_m*rdem_m
+let sup_m = tou_m - dem_m 
+
+
+! name data
+let oxy_7584 = o2[d=5,t="01-DEC-1975":"01-DEC-1984"@ave]
+let oxy_A5B4 = o2[d=5,t="01-DEC-2005":"01-DEC-2014"@ave]
+let tem_7584 = t_an[d=1]
+let tem_A5B4 = t_an[d=3]
+let sal_7584 = s_an[d=2]
+let sal_A5B4 = s_an[d=4]
+
+
+! define grid to share
+define grid/like=o2[d=6] modgrd
+let o2_7584 = oxy_7584[gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave]
+let o2_A5B4 = oxy_A5B4[gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave]
+let te_7584 = tem_7584[gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave]
+let te_A5B4 = tem_A5B4[gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave]
+let sa_7584 = sal_7584[gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave]
+let sa_A5B4 = sal_A5B4[gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave]
+
+
+! calculate oxygen solubility from temperature and salinity
+let A0 = 2.00856
+let A1 = 3.22400
+let A2 = 3.99063
+let A3 = 4.80299
+let A4 = 9.78188e-1
+let A5 = 1.71069
+let B0 = -6.24097e-3
+let B1 = -6.93498e-3
+let B2 = -6.90358e-3
+let B3 = -4.29155e-3
+let C0 = -3.11680e-7
+let atcox  = 0.20946                    ! units atm
+let o2atm  = 1. / ( 1000. * 0.20946 )   !
+let oxyco  = 1. / 22.4144               ! converts from liters of an ideal gas to moles
+
+let Ts_m = ln((298.15 - thetao[d=7]) / (273.15 + thetao[d=7]))
+let Ts2_m = Ts_m*Ts_m
+let Ts3_m = Ts2_m*Ts_m
+let Ts4_m = Ts3_m*Ts_m
+let Ts5_m = Ts4_m*Ts_m
+let Ts_7584 = ln((298.15 - te_7584) / (273.15 + te_7584))
+let Ts2_7584 = Ts_7584*Ts_7584
+let Ts3_7584 = Ts2_7584*Ts_7584
+let Ts4_7584 = Ts3_7584*Ts_7584
+let Ts5_7584 = Ts4_7584*Ts_7584
+let Ts_A5B4 = ln((298.15 - te_A5B4) / (273.15 + te_A5B4))
+let Ts2_A5B4 = Ts_A5B4*Ts_A5B4
+let Ts3_A5B4 = Ts2_A5B4*Ts_A5B4
+let Ts4_A5B4 = Ts3_A5B4*Ts_A5B4
+let Ts5_A5B4 = Ts4_A5B4*Ts_A5B4
+
+let A_m = A0 + A1*Ts_m + A2*Ts2_m + A3*Ts3_m + A4*Ts4_m + A5*Ts5_m
+let B_m = so[d=7] * (B0 + B1*Ts_m + B2*Ts2_m + B3*Ts3_m)
+let C_m = C0*so[d=7]*so[d=7]
+let A_7584 = A0 + A1*Ts_7584 + A2*Ts2_7584 + A3*Ts3_7584 + A4*Ts4_7584 + A5*Ts5_7584
+let B_7584 = sa_7584 * (B0 + B1*Ts_7584 + B2*Ts2_7584 + B3*Ts3_7584)
+let C_7584 = C0*sa_7584*sa_7584
+let A_A5B4 = A0 + A1*Ts_A5B4 + A2*Ts2_A5B4 + A3*Ts3_A5B4 + A4*Ts4_A5B4 + A5*Ts5_A5B4
+let B_A5B4 = sa_A5B4 * (B0 + B1*Ts_A5B4 + B2*Ts2_A5B4 + B3*Ts3_A5B4)
+let C_A5B4 = C0*sa_A5B4*sa_A5B4
+
+let sol_m = exp(A_m+B_m+C_m) * atcox*o2atm*oxyco*1e6
+let sol_7584 = exp(A_7584+B_7584+C_7584) * atcox*o2atm*oxyco*1e6
+let sol_A5B4 = exp(A_A5B4+B_A5B4+C_A5B4) * atcox*o2atm*oxyco*1e6
+
+
+! solve for AOU
+let aou_m = sol_m - oxy_m
+let aou_7584 = sol_7584 - o2_7584
+let aou_A5B4 = sol_A5B4 - o2_A5B4
+
+
+! solve for model disequilibrium
+let dis_m = sol_m - ao2_m
+
+
+! solve for differences and decadal trends
+set reg/z=200:1000
+let oxy_m_dif = o2[d=6,l=34:43@ave] - o2[d=6,l=4:13@ave]
+let oxy_o_dif = o2_A5B4 - o2_7584
+let oxy_m_dec = oxy_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+let oxy_o_dec = oxy_o_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+let sol_m_dif = sol_m[l=34:43@ave] - sol_m[l=4:13@ave]
+let sol_o_dif = sol_A5B4 - sol_7584
+let sol_m_dec = sol_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+let sol_o_dec = sol_o_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+let aou_m_dif = aou_m[l=34:43@ave] - aou_m[l=4:13@ave]
+let aou_o_dif = aou_A5B4 - aou_7584
+let aou_m_dec = aou_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+let aou_o_dec = aou_o_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+let tou_m_dif = tou_m[l=34:43@ave] - tou_m[l=4:13@ave]
+let tou_m_dec = tou_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+let dis_m_dif = dis_m[l=34:43@ave] - dis_m[l=4:13@ave]
+let dis_m_dec = dis_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+let dem_m_dif = dem_m[l=34:43@ave] - dem_m[l=4:13@ave]
+let dem_m_dec = dem_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+let sup_m_dif = sup_m[l=34:43@ave] - sup_m[l=4:13@ave]
+let sup_m_dec = sup_m_dif[z=@ave]/30.0*10	! mmol O2 m-3 decade-1
+
+
+! save modelled data where only ito data exist
+let oxy_m_ito = if o2_7584 ge 0 then o2[d=6] else 1/0
+let oxy_m_ito_dif = oxy_m_ito[z=@ave,l=34:43@ave] - oxy_m_ito[z=@ave,l=4:13@ave]
+
+let sol_m_ito = if o2_7584 ge 0 then sol_m else 1/0
+let sol_m_ito_dif = sol_m_ito[z=@ave,l=34:43@ave] - sol_m_ito[z=@ave,l=4:13@ave]
+
+let aou_m_ito = if o2_7584 ge 0 then aou_m else 1/0
+let aou_m_ito_dif = aou_m_ito[z=@ave,l=34:43@ave] - aou_m_ito[z=@ave,l=4:13@ave]
+
+
+!set win/aspect=0.65/size=1.2 1
+!set vi ul; sha/pal=blue_orange/lev=(-inf)(-2,2,0.4)(inf)/title="Modelled decadal trend (2005-2014 minus 1975-1984)" oxy_m_dec; go fland 
+!set vi ur; plot/vs/vlim=-40:40/hlim=-40:40/title="Observed AOU (black) and solubility (red)" aou_o_dec, oxy_o_dec; plot/o/vs/color=red sol_o_dec, oxy_o_dec
+!set vi ll; plot/vs/vlim=-10:10/hlim=-10:10/title="Modelled AOU (black), sol (red), dis (blue) and TOU (green)" aou_m_dec, oxy_m_dec; plot/o/vs/color=red sol_m_dec, oxy_m_dec; plot/o/vs/color=blue dis_m_dec, oxy_m_dec; plot/o/vs/color=green tou_m_dec, oxy_m_dec
+!set vi lr; plot/title="Zonal mean change in TOU (black), TOUsupply (red) and TOUdemand (green)" tou_m_dec[x=@ave], sup_m_dec[x=@ave], dem_m_dec[x=@ave] 
+!
+
+!set win/aspect=0.35/size=1.2 1
+!set vi left; sha/pal=blue_orange/lev=(-inf)(-10,10,1)(inf)/title="Modelled decadal trend (2005-2014 minus 1975-1984)" oxy_m_dec; go fland 
+!set vi right; sha/pal=blue_orange/lev=(-inf)(-10,10,1)(inf)/title="Observed decadal trend (2005-2014 minus 1975-1984)" oxy_o_dec; go fland
+!
+!set win/aspect=0.65 2
+!plot/vs/vlim=-40:40/hlim=-40:40 oxy_o_dec, oxy_m_dec
+!
+!set win/aspect=0.35/size=1.2 3
+!set vi left; sha/pal=blue_orange/lev=(-inf)(-10,10,1)(inf)/title="Modelled decadal trend (2005-2014 minus 1975-1984)" sol_m_dec; go fland 
+!set vi right; sha/pal=blue_orange/lev=(-inf)(-10,10,1)(inf)/title="Observed decadal trend (2005-2014 minus 1975-1984)" sol_o_dec; go fland
+!
+!set win/aspect=0.65 4
+!plot/vs/vlim=-40:40/hlim=-40:40 sol_o_dec, sol_m_dec
+!
+!set win/aspect=0.35/size=1.2 5
+!set vi left; sha/pal=blue_orange/lev=(-inf)(-10,10,1)(inf)/title="Modelled decadal trend (2005-2014 minus 1975-1984)" aou_m_dec; go fland 
+!set vi right; sha/pal=blue_orange/lev=(-inf)(-10,10,1)(inf)/title="Observed decadal trend (2005-2014 minus 1975-1984)" aou_o_dec; go fland
+!
+!set win/aspect=0.65 6
+!plot/vs/vlim=-40:40/hlim=-40:40 aou_o_dec, aou_m_dec
+
+
+save/clobber/file="figure_compare_ito_jra55_ndep.nc" oxy_m_dec, oxy_o_dec
+save/append/file="figure_compare_ito_jra55_ndep.nc" sol_m_dec, sol_o_dec
+save/append/file="figure_compare_ito_jra55_ndep.nc" aou_m_dec, aou_o_dec
+save/append/file="figure_compare_ito_jra55_ndep.nc" tou_m_dec, dis_m_dec, sup_m_dec, dem_m_dec
+
+
+
+
+message
+
+can data/all
+can var/all
+can reg/all
+
+use ETOPO_JRA55_pic_1y_oxygen_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_oxygen_T_1972-2019.nc
+use ETOPO_JRA55_pic_1y_ts_T_1972-2019.nc
+
+let oxy_pic = if abioo2[d=1] eq 0 then 1/0 else o2[d=1]
+let ao2_pic = if abioo2[d=1] eq 0 then 1/0 else abioo2[d=1]
+let tou_pic = ao2_pic-oxy_pic
+let oxy_dep = if abioo2[d=2] eq 0 then 1/0 else o2[d=2]
+let ao2_dep = if abioo2[d=2] eq 0 then 1/0 else abioo2[d=2]
+let tou_dep = ao2_dep-oxy_dep
+
+! calculate oxygen solubility from temperature and salinity
+let A0 = 2.00856
+let A1 = 3.22400
+let A2 = 3.99063
+let A3 = 4.80299
+let A4 = 9.78188e-1
+let A5 = 1.71069
+let B0 = -6.24097e-3
+let B1 = -6.93498e-3
+let B2 = -6.90358e-3
+let B3 = -4.29155e-3
+let C0 = -3.11680e-7
+let atcox  = 0.20946                    ! units atm
+let o2atm  = 1. / ( 1000. * 0.20946 )   !
+let oxyco  = 1. / 22.4144               ! converts from liters of an ideal gas to moles
+
+let Ts_m = ln((298.15 - thetao[d=3]) / (273.15 + thetao[d=3]))
+let Ts2_m = Ts_m*Ts_m
+let Ts3_m = Ts2_m*Ts_m
+let Ts4_m = Ts3_m*Ts_m
+let Ts5_m = Ts4_m*Ts_m
+
+let A_m = A0 + A1*Ts_m + A2*Ts2_m + A3*Ts3_m + A4*Ts4_m + A5*Ts5_m
+let B_m = so[d=3] * (B0 + B1*Ts_m + B2*Ts2_m + B3*Ts3_m)
+let C_m = C0*so[d=3]*so[d=3]
+
+let sol = exp(A_m+B_m+C_m) * atcox*o2atm*oxyco*1e6
+let aou_pic = sol - oxy_pic
+let aou_dep = sol - oxy_dep
+
+
+
+set reg/z=200:1000
+
+let sol_glob = sol[x=@ave,y=@ave,z=@ave]
+let oxy_pic_glob = oxy_pic[x=@ave,y=@ave,z=@ave]
+let aou_pic_glob = aou_pic[x=@ave,y=@ave,z=@ave]
+let oxy_dep_glob = oxy_dep[x=@ave,y=@ave,z=@ave]
+let aou_dep_glob = aou_dep[x=@ave,y=@ave,z=@ave]
+
+let sol_trop = sol[x=@ave,y=-20:20@ave,z=@ave]
+let oxy_pic_trop = oxy_pic[x=@ave,y=-20:20@ave,z=@ave]
+let aou_pic_trop = aou_pic[x=@ave,y=-20:20@ave,z=@ave]
+let oxy_dep_trop = oxy_dep[x=@ave,y=-20:20@ave,z=@ave]
+let aou_dep_trop = aou_dep[x=@ave,y=-20:20@ave,z=@ave]
+
+let sol_extr = if abs(y[gy=oxy_pic]) gt 20 then sol else 1/0
+let oxy_pic_extr = if abs(y[gy=oxy_pic]) gt 20 then oxy_pic else 1/0
+let aou_pic_extr = if abs(y[gy=oxy_pic]) gt 20 then aou_pic else 1/0
+let oxy_dep_extr = if abs(y[gy=oxy_dep]) gt 20 then oxy_dep else 1/0
+let aou_dep_extr = if abs(y[gy=oxy_dep]) gt 20 then aou_dep else 1/0
+
+let sol_extra = sol_extr[x=@ave,y=@ave,z=@ave]
+let oxy_pic_extra = oxy_pic_extr[x=@ave,y=@ave,z=@ave]
+let aou_pic_extra = aou_pic_extr[x=@ave,y=@ave,z=@ave]
+let oxy_dep_extra = oxy_dep_extr[x=@ave,y=@ave,z=@ave]
+let aou_dep_extra = aou_dep_extr[x=@ave,y=@ave,z=@ave]
+
+set mem/size=4000
+save/clobber/file="figure_compare_ito_jra55_6thpanel.nc" sol_trop, sol_extra, sol_glob 
+save/append/file="figure_compare_ito_jra55_6thpanel.nc" oxy_pic_trop, oxy_pic_extra, oxy_pic_glob 
+save/append/file="figure_compare_ito_jra55_6thpanel.nc" oxy_dep_trop, oxy_dep_extra, oxy_dep_glob
+save/append/file="figure_compare_ito_jra55_6thpanel.nc" aou_pic_trop, aou_pic_extra, aou_pic_glob
+save/append/file="figure_compare_ito_jra55_6thpanel.nc" aou_dep_trop, aou_dep_extra, aou_dep_glob
+
+
+
+

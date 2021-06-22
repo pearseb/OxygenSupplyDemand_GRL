@@ -1,0 +1,376 @@
+set mem/size=4000
+
+can win/all
+can data/all
+can var/all
+can reg/all
+
+
+use ETOPO_JRA55_pic_1y_age_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_oxygen_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_reminnitr_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_prod_T_1972-2019.nc
+
+let wma = if abioo2[d=2] eq 0 then 1/0 else age[d=1]
+let oxy = if abioo2[d=2] eq 0 then 1/0 else o2[d=2]
+let ao2 = if abioo2[d=2] eq 0 then 1/0 else abioo2[d=2]
+let tou = ao2-oxy
+let rdem = (remin[d=3]*(133/122.0) + nitr[d=3]*2.0 - (ppphyn[d=4]+ppphyd[d=4])*(133/122.0))*1e3*86400*365
+let npp = (ppphyn[z=0:5000@din,d=4]+ppphyd[z=0:5000@din,d=4])*86400*365*12
+
+set reg/z=200:1000
+
+let wma_tre = (wma[l=34:43@ave] - wma[l=4:13@ave])/30.0*10
+let tou_tre = (tou[l=34:43@ave] - tou[l=4:13@ave])/30.0*10
+let rdem_tre = (rdem[l=34:43@ave] - rdem[l=4:13@ave])/30.0*10
+let npp_tre = (npp[l=34:43@ave] - npp[l=4:13@ave])/30.0*10
+let wma_tre_zave = wma_tre[z=@ave]
+let tou_tre_zave = tou_tre[z=@ave]
+let rdem_tre_zave = rdem_tre[z=@ave]
+
+!let wma_tre = wma[l=@shf:1] - wma
+!let tou_tre = tou[l=@shf:1] - tou
+!let rdem_tre = rdem[l=@shf:1] - rdem
+!let npp_tre = npp[l=@shf:1] - npp
+!let wma_tre_zave = wma_tre[z=@ave,l=@ave]*10
+!let tou_tre_zave = tou_tre[z=@ave,l=@ave]*10
+!let rdem_tre_zave = rdem_tre[z=@ave,l=@ave]*10
+!let npp_tre_zave = npp_tre[z=@ave,l=@ave]*10
+
+
+
+set reg/l=4:43
+
+let tou_zave = tou[z=@ave]
+let wma_zave = wma[z=@ave]
+let rdem_zave = rdem[z=@ave]
+
+
+! calculate correlations
+let wma_xmxhat = wma_zave - wma_zave[l=@ave]
+let wma_ymyhat = tou_zave - tou_zave[l=@ave]
+let wma_num1 = wma_xmxhat * wma_ymyhat
+let wma_num = wma_num1[l=@sum]
+let wma_xmxhat2 = wma_xmxhat*wma_xmxhat
+let wma_ymyhat2 = wma_ymyhat*wma_ymyhat
+let wma_dem = (wma_xmxhat2[l=@sum] * wma_ymyhat2[l=@sum])^0.5
+let wma_r = wma_num/wma_dem
+
+let rdem_xmxhat = rdem_zave - rdem_zave[l=@ave]
+let rdem_ymyhat = tou_zave - tou_zave[l=@ave]
+let rdem_num1 = rdem_xmxhat * rdem_ymyhat
+let rdem_num = rdem_num1[l=@sum]
+let rdem_xmxhat2 = rdem_xmxhat*rdem_xmxhat
+let rdem_ymyhat2 = rdem_ymyhat*rdem_ymyhat
+let rdem_dem = (rdem_xmxhat2[l=@sum] * rdem_ymyhat2[l=@sum])^0.5
+let rdem_r = rdem_num/rdem_dem
+
+let npp_xmxhat = npp - npp[l=@ave]
+let npp_ymyhat = tou_zave - tou_zave[l=@ave]
+let npp_num1 = npp_xmxhat * npp_ymyhat
+let npp_num = npp_num1[l=@sum]
+let npp_xmxhat2 = npp_xmxhat*npp_xmxhat
+let npp_ymyhat2 = npp_ymyhat*npp_ymyhat
+let npp_dem = (npp_xmxhat2[l=@sum] * npp_ymyhat2[l=@sum])^0.5
+let npp_r = npp_num/npp_dem
+
+
+! calculate slope of relationship at each grid point
+let wma_std = wma_zave[l=@std]
+let tou_std = tou_zave[l=@std]
+let rdem_std = rdem_zave[l=@std]
+let npp_std = npp[l=@std]
+let wma_slope = wma_r * (tou_std/wma_std)
+let rdem_slope = rdem_r * (tou_std/rdem_std)
+let npp_slope = npp_r * (tou_std/npp_std)
+
+
+! figure
+set win/aspect=0.65 1
+sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="TOU trend (mmol O2 /m3/decade)" tou_tre_zave; go fland
+set win/aspect=1.4/size=1.4 2
+set vi upper; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="Correlation Age vs TOU trends" wma_r; cont/o/lev=(0); go fland 
+set vi lower; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="Correlation bio-demand vs TOU trends" rdem_r; cont/o/lev=(0); go fland 
+set win/aspect=1.4/size=1.4 3
+set vi upper; sha/lev=(-inf)(-2,2,0.2)(inf)/pal=blue_orange/title="average change in TOU associated with average change in age" wma_slope*wma_tre_zave; cont/o/lev=(0); go fland 
+set vi lower; sha/lev=(-inf)(-2,2,0.2)(inf)/pal=blue_orange/title="average change in TOU associated with average change in bio-demand" rdem_slope*rdem_tre_zave; cont/o/lev=(0); go fland 
+
+set win/aspect=1.4/size=1.4 4
+set vi upper; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="Correlation Age vs TOU trends" wma_r; cont/o/lev=(0.25); go fland 
+set vi lower; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="Correlation bio-demand vs TOU trends" npp_r; cont/o/lev=(0.25); go fland 
+set win/aspect=1.4/size=1.4 5
+set vi upper; sha/lev=(-inf)(-2,2,0.2)(inf)/pal=blue_orange/title="average change in TOU associated with average change in age" wma_slope*wma_tre_zave; cont/o/lev=(0); go fland 
+set vi lower; sha/lev=(-inf)(-2,2,0.2)(inf)/pal=blue_orange/title="average change in TOU associated with average change in bio-demand" npp_slope*npp_tre; cont/o/lev=(0); go fland 
+
+message
+
+save/clobber/file="figure_ageremin_vs_tou_z200-1000_ndep.nc" tou_tre_zave, wma_tre_zave, rdem_tre_zave
+save/append/file="figure_ageremin_vs_tou_z200-1000_ndep.nc" wma_r, rdem_r
+save/append/file="figure_ageremin_vs_tou_z200-1000_ndep.nc" wma_slope, rdem_slope
+save/append/file="figure_ageremin_vs_tou_z200-1000_ndep.nc" wma_std, rdem_std
+!save/clobber/file="figure_ageremin_vs_tou_z200-1000_shf1972-2019.nc" tou_tre_zave, wma_tre_zave, rdem_tre_zave
+!save/append/file="figure_ageremin_vs_tou_z200-1000_shf1972-2019.nc" wma_r, rdem_r
+!save/append/file="figure_ageremin_vs_tou_z200-1000_shf1972-2019.nc" wma_slope, rdem_slope
+
+
+! DO the same on native grid
+
+message
+
+set mem/size=4000
+
+can win/all
+can data/all
+can var/all
+can reg/all
+
+
+use JRA55_pic_1y_Age_T_1972-2019.nc
+use JRA55_pic_1y_oxygen_T_1972-2019.nc
+use JRA55_pic_1y_reminnitr_T_1972-2019.nc
+use JRA55_pic_1y_prod_T_1972-2019.nc
+
+let wma = if abioo2[d=2] eq 0 then 1/0 else age[d=1]
+let oxy = if abioo2[d=2] eq 0 then 1/0 else o2[d=2]
+let ao2 = if abioo2[d=2] eq 0 then 1/0 else abioo2[d=2]
+let tou = ao2-oxy
+let rdem = (remin[d=3]*(133/122.0) + nitr[d=3]*2.0 - (ppphyn[d=4]+ppphyd[d=4])*(133/122.0))*1e3*86400*365
+
+
+set reg/z=200:1000
+set reg/l=4:48
+
+!let wma_tre = (wma[l=34:43@ave] - wma[l=4:13@ave])/30.0*10
+!let tou_tre = (tou[l=34:43@ave] - tou[l=4:13@ave])/30.0*10
+!let rdem_tre = (rdem[l=34:43@ave] - rdem[l=4:13@ave])/30.0*10
+!let wma_tre_zave = wma_tre[z=@ave]
+!let tou_tre_zave = tou_tre[z=@ave]
+!let rdem_tre_zave = rdem_tre[z=@ave]
+
+let wma_shf = wma[l=@shf:1] - wma
+let tou_shf = tou[l=@shf:1] - tou
+let rdem_shf = rdem[l=@shf:1] - rdem
+let wma_tre_zave = wma_shf[z=@ave,l=@ave]*10
+let tou_tre_zave = tou_shf[z=@ave,l=@ave]*10
+let rdem_tre_zave = rdem_shf[z=@ave,l=@ave]*10
+
+
+
+let tou_zave = tou[z=@ave]
+let wma_zave = wma[z=@ave]
+let rdem_zave = rdem[z=@ave]
+
+
+! calculate correlations
+let wma_xmxhat = wma_zave - wma_zave[l=@ave]
+let wma_ymyhat = tou_zave - tou_zave[l=@ave]
+let wma_num1 = wma_xmxhat * wma_ymyhat
+let wma_num = wma_num1[l=@sum]
+let wma_xmxhat2 = wma_xmxhat*wma_xmxhat
+let wma_ymyhat2 = wma_ymyhat*wma_ymyhat
+let wma_dem = (wma_xmxhat2[l=@sum] * wma_ymyhat2[l=@sum])^0.5
+let wma_r = wma_num/wma_dem
+
+let rdem_xmxhat = rdem_zave - rdem_zave[l=@ave]
+let rdem_ymyhat = tou_zave - tou_zave[l=@ave]
+let rdem_num1 = rdem_xmxhat * rdem_ymyhat
+let rdem_num = rdem_num1[l=@sum]
+let rdem_xmxhat2 = rdem_xmxhat*rdem_xmxhat
+let rdem_ymyhat2 = rdem_ymyhat*rdem_ymyhat
+let rdem_dem = (rdem_xmxhat2[l=@sum] * rdem_ymyhat2[l=@sum])^0.5
+let rdem_r = rdem_num/rdem_dem
+
+
+! calculate slope of relationship at each grid point
+let wma_std = wma_zave[l=@std]
+let tou_std = tou_zave[l=@std]
+let rdem_std = rdem_zave[l=@std]
+let wma_slope = wma_r * (tou_std/wma_std)
+let rdem_slope = rdem_r * (tou_std/rdem_std)
+
+
+! figure
+set win/aspect=0.65 1
+sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="TOU trend (mmol O2 /m3/decade)" tou_tre_zave
+set win/aspect=1.4/size=1.4 2
+set vi upper; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="Correlation Age vs TOU trends" wma_r; cont/o/lev=(0) 
+set vi lower; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange/title="Correlation bio-demand vs TOU trends" rdem_r; cont/o/lev=(0) 
+set win/aspect=1.4/size=1.4 3
+set vi upper; sha/lev=(-inf)(-0.5,0.5,0.1)(inf)/pal=blue_orange/title="slope Age vs TOU trends" wma_slope; cont/o/lev=(0) 
+set vi lower; sha/lev=(-inf)(-10,10,2)(inf)/pal=blue_orange/title="slope bio-demand vs TOU trends" rdem_slope; cont/o/lev=(0) 
+
+
+save/clobber/file="figure_ageremin_vs_tou_z200-1000_nativegrid.nc" tou_tre_zave, wma_tre_zave, rdem_tre_zave
+save/append/file="figure_ageremin_vs_tou_z200-1000_nativegrid.nc" wma_r, rdem_r
+save/append/file="figure_ageremin_vs_tou_z200-1000_nativegrid.nc" wma_slope, rdem_slope
+
+
+! NOW DO SAME THING ON ISO SURFACES
+
+
+message
+
+set mem/size=6000
+
+use ETOPO_JRA55_pic_1m_temperature_T_1972-2019.nc
+use ETOPO_JRA55_pic_1m_salinity_T_1972-2019.nc
+
+let temp = if so[d=6] eq 0 then 1/0 else thetao[d=5]
+let salt = if so[d=6] eq 0 then 1/0 else so[d=6]
+let rho0 = rho_un(salt,temp,0)-1000
+
+can reg/z
+set reg/m=4:43
+
+
+define axis/z=25.0:28.0:0.05 rhoax
+
+
+let tou_rhoax = zaxreplace(tou,rho0,z[gz=rhoax]) 
+let wma_rhoax = zaxreplace(wma,rho0,z[gz=rhoax]) 
+let rdem_rhoax = zaxreplace(rdem,rho0,z[gz=rhoax]) 
+
+let wma_rhoax_tre = (wma_rhoax[m=34:43@ave] - wma_rhoax[m=4:13@ave])/30.0*10
+let tou_rhoax_tre = (tou_rhoax[m=34:43@ave] - tou_rhoax[m=4:13@ave])/30.0*10
+let rdem_rhoax_tre = (rdem_rhoax[m=34:43@ave] - rdem_rhoax[m=4:13@ave])/30.0*10
+
+let wma_rhoax_tre_26p0_26p5 = wma_rhoax_tre[z=26.0:26.5@ave,l=@ave]
+let tou_rhoax_tre_26p0_26p5 = tou_rhoax_tre[z=26.0:26.5@ave,l=@ave]
+let rdem_rhoax_tre_26p0_26p5 = rdem_rhoax_tre[z=26.0:26.5@ave,l=@ave]
+let wma_rhoax_tre_26p5_27p0 = wma_rhoax_tre[z=26.5:27.0@ave,l=@ave]
+let tou_rhoax_tre_26p5_27p0 = tou_rhoax_tre[z=26.5:27.0@ave,l=@ave]
+let rdem_rhoax_tre_26p5_27p0 = rdem_rhoax_tre[z=26.5:27.0@ave,l=@ave]
+let wma_rhoax_tre_27p0_27p4 = wma_rhoax_tre[z=27.0:27.4@ave,l=@ave]
+let tou_rhoax_tre_27p0_27p4 = tou_rhoax_tre[z=27.0:27.4@ave,l=@ave]
+let rdem_rhoax_tre_27p0_27p4 = rdem_rhoax_tre[z=27.0:27.4@ave,l=@ave]
+
+let wma_rhoax_26p0_26p5 = wma_rhoax[z=26.0:26.5@ave,l=@ave]
+let tou_rhoax_26p0_26p5 = tou_rhoax[z=26.0:26.5@ave,l=@ave]
+let rdem_rhoax_26p0_26p5 = rdem_rhoax[z=26.0:26.5@ave,l=@ave]
+let wma_rhoax_26p5_27p0 = wma_rhoax[z=26.5:27.0@ave,l=@ave]
+let tou_rhoax_26p5_27p0 = tou_rhoax[z=26.5:27.0@ave,l=@ave]
+let rdem_rhoax_26p5_27p0 = rdem_rhoax[z=26.5:27.0@ave,l=@ave]
+let wma_rhoax_27p0_27p4 = wma_rhoax[z=27.0:27.4@ave,l=@ave]
+let tou_rhoax_27p0_27p4 = tou_rhoax[z=27.0:27.4@ave,l=@ave]
+let rdem_rhoax_27p0_27p4 = rdem_rhoax[z=27.0:27.4@ave,l=@ave]
+
+
+set reg/m=4:43
+
+
+! calculate correlations
+let wma_rhoax_xmxhat_26p0_26p5 = wma_rhoax_26p0_26p5 - wma_rhoax_26p0_26p5[m=@ave]
+let wma_rhoax_ymyhat_26p0_26p5 = tou_rhoax_26p0_26p5 - tou_rhoax_26p0_26p5[m=@ave]
+let wma_rhoax_num1_26p0_26p5 = wma_rhoax_xmxhat_26p0_26p5 * wma_rhoax_ymyhat_26p0_26p5
+let wma_rhoax_num_26p0_26p5 = wma_rhoax_num1_26p0_26p5[m=@sum]
+let wma_rhoax_xmxhat2_26p0_26p5 = wma_rhoax_xmxhat_26p0_26p5*wma_rhoax_xmxhat_26p0_26p5
+let wma_rhoax_ymyhat2_26p0_26p5 = wma_rhoax_ymyhat_26p0_26p5*wma_rhoax_ymyhat_26p0_26p5
+let wma_rhoax_dem_26p0_26p5 = (wma_rhoax_xmxhat2_26p0_26p5[m=@sum] * wma_rhoax_ymyhat2_26p0_26p5[m=@sum])^0.5
+let wma_rhoax_r_26p0_26p5 = wma_rhoax_num_26p0_26p5/wma_rhoax_dem_26p0_26p5
+
+let rdem_rhoax_xmxhat_26p0_26p5 = rdem_rhoax_26p0_26p5 - rdem_rhoax_26p0_26p5[m=@ave]
+let rdem_rhoax_ymyhat_26p0_26p5 = tou_rhoax_26p0_26p5 - tou_rhoax_26p0_26p5[m=@ave]
+let rdem_rhoax_num1_26p0_26p5 = rdem_rhoax_xmxhat_26p0_26p5 * rdem_rhoax_ymyhat_26p0_26p5
+let rdem_rhoax_num_26p0_26p5 = rdem_rhoax_num1_26p0_26p5[m=@sum]
+let rdem_rhoax_xmxhat2_26p0_26p5 = rdem_rhoax_xmxhat_26p0_26p5*rdem_rhoax_xmxhat_26p0_26p5
+let rdem_rhoax_ymyhat2_26p0_26p5 = rdem_rhoax_ymyhat_26p0_26p5*rdem_rhoax_ymyhat_26p0_26p5
+let rdem_rhoax_dem_26p0_26p5 = (rdem_rhoax_xmxhat2_26p0_26p5[m=@sum] * rdem_rhoax_ymyhat2_26p0_26p5[m=@sum])^0.5
+let rdem_rhoax_r_26p0_26p5 = rdem_rhoax_num_26p0_26p5/rdem_rhoax_dem_26p0_26p5
+
+let wma_rhoax_xmxhat_26p5_27p0 = wma_rhoax_26p5_27p0 - wma_rhoax_26p5_27p0[m=@ave]
+let wma_rhoax_ymyhat_26p5_27p0 = tou_rhoax_26p5_27p0 - tou_rhoax_26p5_27p0[m=@ave]
+let wma_rhoax_num1_26p5_27p0 = wma_rhoax_xmxhat_26p5_27p0 * wma_rhoax_ymyhat_26p5_27p0
+let wma_rhoax_num_26p5_27p0 = wma_rhoax_num1_26p5_27p0[m=@sum]
+let wma_rhoax_xmxhat2_26p5_27p0 = wma_rhoax_xmxhat_26p5_27p0*wma_rhoax_xmxhat_26p5_27p0
+let wma_rhoax_ymyhat2_26p5_27p0 = wma_rhoax_ymyhat_26p5_27p0*wma_rhoax_ymyhat_26p5_27p0
+let wma_rhoax_dem_26p5_27p0 = (wma_rhoax_xmxhat2_26p5_27p0[m=@sum] * wma_rhoax_ymyhat2_26p5_27p0[m=@sum])^0.5
+let wma_rhoax_r_26p5_27p0 = wma_rhoax_num_26p5_27p0/wma_rhoax_dem_26p5_27p0
+
+let rdem_rhoax_xmxhat_26p5_27p0 = rdem_rhoax_26p5_27p0 - rdem_rhoax_26p5_27p0[m=@ave]
+let rdem_rhoax_ymyhat_26p5_27p0 = tou_rhoax_26p5_27p0 - tou_rhoax_26p5_27p0[m=@ave]
+let rdem_rhoax_num1_26p5_27p0 = rdem_rhoax_xmxhat_26p5_27p0 * rdem_rhoax_ymyhat_26p5_27p0
+let rdem_rhoax_num_26p5_27p0 = rdem_rhoax_num1_26p5_27p0[m=@sum]
+let rdem_rhoax_xmxhat2_26p5_27p0 = rdem_rhoax_xmxhat_26p5_27p0*rdem_rhoax_xmxhat_26p5_27p0
+let rdem_rhoax_ymyhat2_26p5_27p0 = rdem_rhoax_ymyhat_26p5_27p0*rdem_rhoax_ymyhat_26p5_27p0
+let rdem_rhoax_dem_26p5_27p0 = (rdem_rhoax_xmxhat2_26p5_27p0[m=@sum] * rdem_rhoax_ymyhat2_26p5_27p0[m=@sum])^0.5
+let rdem_rhoax_r_26p5_27p0 = rdem_rhoax_num_26p5_27p0/rdem_rhoax_dem_26p5_27p0
+
+let wma_rhoax_xmxhat_27p0_27p4 = wma_rhoax_27p0_27p4 - wma_rhoax_27p0_27p4[m=@ave]
+let wma_rhoax_ymyhat_27p0_27p4 = tou_rhoax_27p0_27p4 - tou_rhoax_27p0_27p4[m=@ave]
+let wma_rhoax_num1_27p0_27p4 = wma_rhoax_xmxhat_27p0_27p4 * wma_rhoax_ymyhat_27p0_27p4
+let wma_rhoax_num_27p0_27p4 = wma_rhoax_num1_27p0_27p4[m=@sum]
+let wma_rhoax_xmxhat2_27p0_27p4 = wma_rhoax_xmxhat_27p0_27p4*wma_rhoax_xmxhat_27p0_27p4
+let wma_rhoax_ymyhat2_27p0_27p4 = wma_rhoax_ymyhat_27p0_27p4*wma_rhoax_ymyhat_27p0_27p4
+let wma_rhoax_dem_27p0_27p4 = (wma_rhoax_xmxhat2_27p0_27p4[m=@sum] * wma_rhoax_ymyhat2_27p0_27p4[m=@sum])^0.5
+let wma_rhoax_r_27p0_27p4 = wma_rhoax_num_27p0_27p4/wma_rhoax_dem_27p0_27p4
+
+let rdem_rhoax_xmxhat_27p0_27p4 = rdem_rhoax_27p0_27p4 - rdem_rhoax_27p0_27p4[m=@ave]
+let rdem_rhoax_ymyhat_27p0_27p4 = tou_rhoax_27p0_27p4 - tou_rhoax_27p0_27p4[m=@ave]
+let rdem_rhoax_num1_27p0_27p4 = rdem_rhoax_xmxhat_27p0_27p4 * rdem_rhoax_ymyhat_27p0_27p4
+let rdem_rhoax_num_27p0_27p4 = rdem_rhoax_num1_27p0_27p4[m=@sum]
+let rdem_rhoax_xmxhat2_27p0_27p4 = rdem_rhoax_xmxhat_27p0_27p4*rdem_rhoax_xmxhat_27p0_27p4
+let rdem_rhoax_ymyhat2_27p0_27p4 = rdem_rhoax_ymyhat_27p0_27p4*rdem_rhoax_ymyhat_27p0_27p4
+let rdem_rhoax_dem_27p0_27p4 = (rdem_rhoax_xmxhat2_27p0_27p4[m=@sum] * rdem_rhoax_ymyhat2_27p0_27p4[m=@sum])^0.5
+let rdem_rhoax_r_27p0_27p4 = rdem_rhoax_num_27p0_27p4/rdem_rhoax_dem_27p0_27p4
+
+
+! calculate slope of relationship at each grid point
+let wma_rhoax_std_26p0_26p5 = wma_rhoax_26p0_26p5[m=@std]
+let tou_rhoax_std_26p0_26p5 = tou_rhoax_26p0_26p5[m=@std]
+let rdem_rhoax_std_26p0_26p5 = rdem_rhoax_26p0_26p5[m=@std]
+let wma_rhoax_slope_26p0_26p5 = wma_rhoax_r_26p0_26p5 * (tou_rhoax_std_26p0_26p5/wma_rhoax_std_26p0_26p5)
+let rdem_rhoax_slope_26p0_26p5 = rdem_rhoax_r_26p0_26p5 * (tou_rhoax_std_26p0_26p5/rdem_rhoax_std_26p0_26p5)
+
+let wma_rhoax_std_26p5_27p0 = wma_rhoax_26p5_27p0[m=@std]
+let tou_rhoax_std_26p5_27p0 = tou_rhoax_26p5_27p0[m=@std]
+let rdem_rhoax_std_26p5_27p0 = rdem_rhoax_26p0_26p5[m=@std]
+let wma_rhoax_slope_26p5_27p0 = wma_rhoax_r_26p5_27p0 * (tou_rhoax_std_26p5_27p0/wma_rhoax_std_26p5_27p0)
+let rdem_rhoax_slope_26p5_27p0 = rdem_rhoax_r_26p5_27p0 * (tou_rhoax_std_26p5_27p0/rdem_rhoax_std_26p5_27p0)
+
+let wma_rhoax_std_27p0_27p4 = wma_rhoax_27p0_27p4[m=@std]
+let tou_rhoax_std_27p0_27p4 = tou_rhoax_27p0_27p4[m=@std]
+let rdem_rhoax_std_27p0_27p4 = rdem_rhoax_26p0_26p5[m=@std]
+let wma_rhoax_slope_27p0_27p4 = wma_rhoax_r_27p0_27p4 * (tou_rhoax_std_27p0_27p4/wma_rhoax_std_27p0_27p4)
+let rdem_rhoax_slope_27p0_27p4 = rdem_rhoax_r_27p0_27p4 * (tou_rhoax_std_27p0_27p4/rdem_rhoax_std_27p0_27p4)
+
+
+
+!! figure
+!set win/aspect=0.65 1
+!sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange tou_rhoax_tre_26p0_26p5; go fland
+!set win/aspect=1.5/size=1.4 2
+!set vi upper; sha/lev=(-inf)(-0.5,0.5,0.1)(inf)/pal=blue_orange wma_rhoax_slope_26p0_26p5; cont/o/lev=(-1,1,0.5) wma_rhoax_r_26p0_26p5; go fland 
+!set vi lower; sha/lev=(-inf)(-50,50,10)(inf)/pal=blue_orange rdem_rhoax_slope_26p0_26p5; cont/o/lev=(-1,1,0.5) rdem_rhoax_r_26p0_26p5; go fland 
+!set win/aspect=1.5/size=1.4 3
+!set vi upper; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange wma_rhoax_r_26p0_26p5; go fland 
+!set vi lower; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange rdem_rhoax_r_26p0_26p5; go fland 
+!
+!set win/aspect=0.65 4
+!sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange tou_rhoax_tre_26p5_27p0; go fland
+!set win/aspect=1.5/size=1.4 5
+!set vi upper; sha/lev=(-inf)(-0.5,0.5,0.1)(inf)/pal=blue_orange wma_rhoax_slope_26p5_27p0; cont/o/lev=(-1,1,0.5) wma_rhoax_r_26p5_27p0; go fland 
+!set vi lower; sha/lev=(-inf)(-50,50,10)(inf)/pal=blue_orange rdem_rhoax_slope_26p5_27p0; cont/o/lev=(-1,1,0.5) rdem_rhoax_r_26p5_27p0; go fland 
+!set win/aspect=1.5/size=1.4 6
+!set vi upper; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange wma_rhoax_r_26p5_27p0; go fland 
+!set vi lower; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange rdem_rhoax_r_26p5_27p0; go fland 
+!
+!set win/aspect=0.65 7
+!sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange tou_rhoax_tre_27p0_27p4; go fland
+!set win/aspect=1.5/size=1.4 8
+!set vi upper; sha/lev=(-inf)(-0.5,0.5,0.1)(inf)/pal=blue_orange wma_rhoax_slope_27p0_27p4; cont/o/lev=(-1,1,0.5) wma_rhoax_r_27p0_27p4; go fland 
+!set vi lower; sha/lev=(-inf)(-50,50,10)(inf)/pal=blue_orange rdem_rhoax_slope_27p0_27p4; cont/o/lev=(-1,1,0.5) rdem_rhoax_r_27p0_27p4; go fland 
+!!set win/aspect=1.5/size=1.4 3
+!!set vi upper; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange wma_rhoax_r_27p0_27p4; go fland 
+!!set vi lower; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=blue_orange rdem_rhoax_r_27p0_27p4; go fland 
+
+
+!save/clobber/file="figure_ageremin_vs_tou_isopycnals.nc" tou_rhoax_tre_26p0_26p5, wma_rhoax_tre_26p0_26p5, rdem_rhoax_tre_26p0_26p5
+!save/append/file="figure_ageremin_vs_tou_isopycnals.nc" tou_rhoax_tre_26p5_27p0, wma_rhoax_tre_26p5_27p0, rdem_rhoax_tre_26p5_27p0
+!save/append/file="figure_ageremin_vs_tou_isopycnals.nc" tou_rhoax_tre_27p0_27p4, wma_rhoax_tre_27p0_27p4, rdem_rhoax_tre_27p0_27p4
+!save/append/file="figure_ageremin_vs_tou_isopycnals.nc" wma_rhoax_r_26p0_26p5, rdem_rhoax_r_26p0_26p5
+!save/append/file="figure_ageremin_vs_tou_isopycnals.nc" wma_rhoax_r_26p5_27p0, rdem_rhoax_r_26p5_27p0
+save/append/file="figure_ageremin_vs_tou_isopycnals.nc" wma_rhoax_r_27p0_27p4, rdem_rhoax_r_27p0_27p4
+save/append/file="figure_ageremin_vs_tou_isopycnals.nc" wma_rhoax_slope_26p0_26p5, rdem_rhoax_slope_26p0_26p5
+save/append/file="figure_ageremin_vs_tou_isopycnals.nc" wma_rhoax_slope_26p5_27p0, rdem_rhoax_slope_26p5_27p0
+save/append/file="figure_ageremin_vs_tou_isopycnals.nc" wma_rhoax_slope_27p0_27p4, rdem_rhoax_slope_27p0_27p4
+

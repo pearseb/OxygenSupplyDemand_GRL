@@ -1,0 +1,181 @@
+set mem/size=3000
+
+can data/all
+can var/all
+can reg/all
+
+
+use ETOPO_JRA55_pic_1y_wo_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_prod_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_poc_bvalues_T_1972-2019.nc
+use figure_ageremin_vs_tou_z200-1000_ndep.nc
+use "/users/pearseb/regridfiles/ETOPO_ORCA2.0_Basins_float.nc"
+
+
+let npp = (ppphyn[d=2,z=@din]+ppphyd[d=2,z=@din])*365*86400*12
+let bex = toc_b[d=3]
+let s2t = poc[d=3,z=0:200@din]/(poc[d=3,z=0:200@din]+goc[d=3,z=0:200@din])
+
+let wo_tre = (wo[d=1,z=50,l=34:43@ave] - wo[d=1,z=50,l=4:13@ave])*86400*100/30.0*10
+let npp_tre = (npp[l=34:43@ave] - npp[l=4:13@ave])/30.0*10
+let bex_tre = (bex[l=34:43@ave] - bex[l=4:13@ave])/30.0*10
+let s2t_tre = (s2t[l=34:43@ave] - s2t[l=4:13@ave])/30.0*10
+
+
+
+! Select only regions where correlations with biological demand and TOU are positive and where the slopes are strong
+let mask = if atlmsk[d=5] gt 0 and rdem_r[d=4] gt 0.2 and abs(y[gy=poc[d=3]]) lt 50 then 1 else 0
+let tou_tre_mask = if mask eq 1 then tou_tre_zave[d=4] else 1/0
+let npp_tre_mask = if mask eq 1 then npp_tre else 1/0
+let bex_tre_mask = if mask eq 1 then bex_tre else 1/0
+let rdem_tre_mask = if mask eq 1 then rdem_tre_zave[d=4] else 1/0
+let s2t_tre_mask = if mask eq 1 then s2t_tre else 1/0
+
+
+set reg/x=-150:30/y=-50:50
+
+set win/aspect=0.65/size=1.5 1
+!set vi ul; sha/lev=(-inf)(-1,1,0.2)(inf)/pal=light_centered/title="decadal vertical velocity change (cm/day)" wo_tre; go fland 
+set vi ul; sha/lev=(-inf)(-10,10,2)(inf)/pal=light_centered/title="decadal NPP change (mgC/m2/day)" npp_tre; go fland 
+set vi ur; sha/lev=(-inf)(-0.05,0.05,0.01)(inf)/pal=light_centered/title="decadal b-value change" bex_tre; go fland 
+set vi ll; plot/vs  npp_tre_mask, rdem_tre_mask
+set vi lr; plot/vs/ribbon/lev=(-inf)(-10,10,2)(inf)/pal=light_centered  bex_tre_mask, rdem_tre_mask, npp_tre_mask
+
+can reg/all
+
+save/clobber/file="figure3.nc" wo_tre, npp_tre, bex_tre
+save/append/file="figure3.nc" tou_tre_mask, npp_tre_mask, bex_tre_mask, rdem_tre_mask
+
+
+can data/all
+can var/all
+can reg/all
+
+
+use cmip6/ETOPO_o2_Oyr_IPSL-CM6A-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_o2_Oyr_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_o2_Oyr_UKESM1-0-LL_historical_r1i1p1f2_gn_1951-2014.nc
+
+use cmip6/ETOPO_o2sat_Oyr_IPSL-CM6A-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_o2sat_Oyr_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_o2sat_Oyr_UKESM1-0-LL_historical_r1i1p1f2_gn_1951-2014.nc
+
+use cmip6/ETOPO_intpp_Oyr_IPSL-CM6A-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_intpp_Oyr_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_intpp_Oyr_UKESM1-0-LL_historical_r1i1p1f2_gn_1951-2014.nc
+
+use cmip6/ETOPO_expc_Oyr_IPSL-CM6A-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_expc_Oyr_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_1951-2014.nc
+use cmip6/ETOPO_expc_Oyr_UKESM1-0-LL_historical_r1i1p1f2_gn_1951-2014.nc
+
+
+set reg/l=25:64/x=-150:30/y=-50:60
+define axis/t="14-JUN-1951":"14-JUN-2014":1/units=years tax
+
+!!! Define variables of interest
+
+let oxy_ipsl = o2[d=1,gt=tax@asn]*1e3
+let sol_ipsl = o2sat[d=4,gt=tax@asn]
+let aou_ipsl = sol_ipsl-oxy_ipsl
+let npp_ipsl = intpp[d=7,gt=tax@asn]*12*86400*365
+let exp_ipsl = expc[d=10,z=200,gt=tax@asn]*12*86400*365 - expc[d=10,z=1000,gt=tax@asn]*12*86400*365
+
+let oxy_mpi = o2[d=2,gt=tax@asn]*1e3
+let sol_mpi = o2sat[d=5,gt=tax@asn]
+let aou_mpi = sol_mpi-oxy_mpi
+let npp_mpi = intpp[d=8,gt=tax@asn]*12*86400*365
+let exp_mpi = expc[d=11,z=200,gt=tax@asn]*12*86400*365 - expc[d=11,z=1000,gt=tax@asn]*12*86400*365
+
+let oxy_ukesm = o2[d=3,gt=tax@asn]*1e3
+let sol_ukesm = o2sat[d=6,gt=tax@asn]
+let aou_ukesm = sol_ukesm-oxy_ukesm
+let npp_ukesm = intpp[d=9,gt=tax@asn]*12*86400*365
+let exp_ukesm = expc[d=12,z=200,gt=tax@asn]*12*86400*365 - expc[d=12,z=1000,gt=tax@asn]*12*86400*365
+
+!!! Backhand calculation of oxygen demand based on difference in carbon export between 1000 and 200 metres
+let rem_ipsl = exp_ipsl/12*(165/122.0)*1e3  ! mmol O2 m-2 yr-1
+let rem_mpi = exp_mpi/12*(172/122.0)*1e3
+let rem_ukesm = exp_ukesm/12*(151/106.0)*1e3
+
+
+
+!!! Calculate trends (2005-2014 minus 1975-1984)
+
+let oxy_ipsl_tre = (oxy_ipsl[l=55:64@ave,z=200:1000@ave] - oxy_ipsl[l=25:34@ave,z=200:1000@ave])/30.0*10
+let sol_ipsl_tre = (sol_ipsl[l=55:64@ave,z=200:1000@ave] - sol_ipsl[l=25:34@ave,z=200:1000@ave])/30.0*10
+let aou_ipsl_tre = (aou_ipsl[l=55:64@ave,z=200:1000@ave] - aou_ipsl[l=25:34@ave,z=200:1000@ave])/30.0*10
+let npp_ipsl_tre = (npp_ipsl[l=55:64@ave] - npp_ipsl[l=25:34@ave])/30.0*10
+let exp_ipsl_tre = (exp_ipsl[l=55:64@ave] - exp_ipsl[l=25:34@ave])/30.0*10
+let rem_ipsl_tre = (rem_ipsl[l=55:64@ave] - rem_ipsl[l=25:34@ave])/30.0*10
+
+let oxy_mpi_tre = (oxy_mpi[l=55:64@ave,z=200:1000@ave] - oxy_mpi[l=25:34@ave,z=200:1000@ave])/30.0*10
+let sol_mpi_tre = (sol_mpi[l=55:64@ave,z=200:1000@ave] - sol_mpi[l=25:34@ave,z=200:1000@ave])/30.0*10
+let aou_mpi_tre = (aou_mpi[l=55:64@ave,z=200:1000@ave] - aou_mpi[l=25:34@ave,z=200:1000@ave])/30.0*10
+let npp_mpi_tre = (npp_mpi[l=55:64@ave] - npp_mpi[l=25:34@ave])/30.0*10
+let exp_mpi_tre = (exp_mpi[l=55:64@ave] - exp_mpi[l=25:34@ave])/30.0*10
+let rem_mpi_tre = (rem_mpi[l=55:64@ave] - rem_mpi[l=25:34@ave])/30.0*10
+
+let oxy_ukesm_tre = (oxy_ukesm[l=55:64@ave,z=200:1000@ave] - oxy_ukesm[l=25:34@ave,z=200:1000@ave])/30.0*10
+let sol_ukesm_tre = (sol_ukesm[l=55:64@ave,z=200:1000@ave] - sol_ukesm[l=25:34@ave,z=200:1000@ave])/30.0*10
+let aou_ukesm_tre = (aou_ukesm[l=55:64@ave,z=200:1000@ave] - aou_ukesm[l=25:34@ave,z=200:1000@ave])/30.0*10
+let npp_ukesm_tre = (npp_ukesm[l=55:64@ave] - npp_ukesm[l=25:34@ave])/30.0*10
+let exp_ukesm_tre = (exp_ukesm[l=55:64@ave] - exp_ukesm[l=25:34@ave])/30.0*10
+let rem_ukesm_tre = (rem_ukesm[l=55:64@ave] - rem_ukesm[l=25:34@ave])/30.0*10
+
+
+use cmip6/IPSL-CM6A-LR_historical_trends_and_correlations.nc
+use cmip6/MPI-ESM1-2-LR_historical_trends_and_correlations.nc
+use cmip6/UKESM1-0-LL_historical_trends_and_correlations.nc
+
+use "/users/pearseb/regridfiles/ETOPO_ORCA2.0_Basins_float.nc"
+
+let aou_ipsl_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=13] gt 0.2 then aou_ipsl_tre else 1/0
+let npp_ipsl_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=13] gt 0.2 then npp_ipsl_tre else 1/0
+let rem_ipsl_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=13] gt 0.2 then rem_ipsl_tre else 1/0
+
+let aou_mpi_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=14] gt 0.2 then aou_mpi_tre else 1/0
+let npp_mpi_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=14] gt 0.2 then npp_mpi_tre else 1/0
+let rem_mpi_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=14] gt 0.2 then rem_mpi_tre else 1/0
+
+let aou_ukesm_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=15] gt 0.2 then aou_ukesm_tre else 1/0
+let npp_ukesm_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=15] gt 0.2 then npp_ukesm_tre else 1/0
+let rem_ukesm_tre_coratl = if atlmsk[d=16] gt 0 and npp_r[d=15] gt 0.2 then rem_ukesm_tre else 1/0
+
+
+pal blue_orange
+
+set win/aspect=0.65/size=1.5 1
+set vi ul; sha/title="IPSL-CM6A-LR : AOU"/lev=(-inf)(-2,2,0.2)(inf) aou_ipsl_tre; cont/o/lev=(0); go land
+set vi ur; sha/title="IPSL-CM6A-LR : r(npp)"/lev=(-1,1,0.1) npp_r[d=13]; cont/o/lev=(0.2);  go land
+set vi ll; sha/title="IPSL-CM6A-LR : npp"/lev=(-inf)(-10,10,1)(inf) npp_ipsl_tre; cont/o/lev=(0); go land
+set vi lr; sha/title="IPSL-CM6A-LR : rem"/lev=(-inf)(-100,100,10)(inf) rem_ipsl_tre; cont/o/lev=(0); go land
+
+set win/aspect=0.65/size=1.5 2
+set vi ul; sha/title="MPI-ESM1-2-LR : AOU"/lev=(-inf)(-2,2,0.2)(inf) aou_mpi_tre; cont/o/lev=(0); go land
+set vi ur; sha/title="MPI-ESM1-2-LR : r(npp)"/lev=(-1,1,0.1) npp_r[d=14]; cont/o/lev=(0.2);  go land
+set vi ll; sha/title="MPI-ESM1-2-LR : npp"/lev=(-inf)(-10,10,1)(inf) npp_mpi_tre; cont/o/lev=(0); go land
+set vi lr; sha/title="MPI-ESM1-2-LR : rem"/lev=(-inf)(-100,100,10)(inf) rem_mpi_tre; cont/o/lev=(0); go land
+
+set win/aspect=0.65/size=1.5 3
+set vi ul; sha/title="UKESM1-0-LL : AOU"/lev=(-inf)(-2,2,0.2)(inf) aou_ukesm_tre; cont/o/lev=(0); go land
+set vi ur; sha/title="UKESM1-0-LL : r(npp)"/lev=(-1,1,0.1) npp_r[d=15]; cont/o/lev=(0.2);  go land
+set vi ll; sha/title="UKESM1-0-LL : npp"/lev=(-inf)(-10,10,1)(inf) npp_ukesm_tre; cont/o/lev=(0); go land
+set vi lr; sha/title="UKESM1-0-LL : rem"/lev=(-inf)(-100,100,10)(inf) rem_ukesm_tre; cont/o/lev=(0); go land
+
+
+set win 4
+plot/vs npp_ipsl_tre_coratl, rem_ipsl_tre_coratl
+plot/vs/o/color=red npp_mpi_tre_coratl, rem_mpi_tre_coratl
+plot/vs/o/color=blue npp_ukesm_tre_coratl, rem_ukesm_tre_coratl
+set win 5
+plot/vs/hlim=-150:150/vlim=-3:3 rem_ipsl_tre_coratl, aou_ipsl_tre_coratl
+plot/vs/o/color=red rem_mpi_tre_coratl, aou_mpi_tre_coratl
+plot/vs/o/color=blue rem_ukesm_tre_coratl, aou_ukesm_tre_coratl
+
+
+save/append/file="figure3.nc" npp_ipsl_tre_coratl, npp_mpi_tre_coratl, npp_ukesm_tre_coratl 
+save/append/file="figure3.nc" rem_ipsl_tre_coratl, rem_mpi_tre_coratl, rem_ukesm_tre_coratl 
+save/append/file="figure3.nc" aou_ipsl_tre_coratl, aou_mpi_tre_coratl, aou_ukesm_tre_coratl 
+
+
+

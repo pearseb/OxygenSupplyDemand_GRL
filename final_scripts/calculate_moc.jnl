@@ -1,0 +1,124 @@
+set mem/size=6000
+
+can data/all
+can var/all
+can reg/all
+
+use ./JRA55_pic_1y_vo_1972-2019.nc
+use "/users/pearseb/regridfiles/ORCA2_xyz_grid_V.nc"
+use "/mnt/data1/users/pearseb/RUNDIR4/ORCA2.0_Basins.nc"
+use "/mnt/data1/users/pearseb/RUNDIR4/ORCA2.0_grid.nc"
+
+
+let vel_glo = if glomsk[d=3] eq 1 then vo[d=1] else 1/0
+let vel_atl = if atlmsk[d=3] eq 1 then vo[d=1] else 1/0
+let vel_pac = if pacmsk[d=3] eq 1 then vo[d=1] else 1/0
+let vel_ind = if indmsk[d=3] eq 1 then vo[d=1] else 1/0
+
+let vela_glo = vel_glo*e1v[d=2]*e3v[d=1]
+let vela_atl = vel_atl*e1v[d=2]*e3v[d=1]
+let vela_pac = vel_pac*e1v[d=2]*e3v[d=1]
+let vela_ind = vel_ind*e1v[d=2]*e3v[d=1]
+
+save/clobber/file="moc.nc" vela_atl
+save/append/file="moc.nc" vela_pac
+save/append/file="moc.nc" vela_ind
+save/append/file="moc.nc" vela_glo
+
+
+!!! regrid the moc.nc file
+sp ncrename -d X,x moc.nc
+sp ncrename -d Y,y moc.nc
+sp ncrename -v DEPTHV,depth moc.nc
+sp ncks -A -v nav_lon JRA55_pic_1y_Age_T_1972-2019.nc moc.nc
+sp ncks -A -v nav_lat JRA55_pic_1y_Age_T_1972-2019.nc moc.nc
+sp ncatted -O -a coordinates,VELA_ATL,c,c,"depth nav_lat nav_lon" moc.nc
+sp ncatted -O -a coordinates,VELA_PAC,c,c,"depth nav_lat nav_lon" moc.nc
+sp ncatted -O -a coordinates,VELA_IND,c,c,"depth nav_lat nav_lon" moc.nc
+sp ncatted -O -a coordinates,VELA_GLO,c,c,"depth nav_lat nav_lon" moc.nc
+sp ncks -O --mk_rec_dim RECORD moc.nc moc.nc
+
+
+
+can data/all
+can var/all
+can reg/all
+
+use ETOPO_moc.nc
+use ETOPO_JRA55_pic_1y_age_T_1972-2019.nc
+use /users/pearseb/regridfiles/ETOPO_ORCA2.0_Basins_float.nc
+
+define grid/like=age[d=2] modgrd
+
+let vel_glo = vela_glo[d=1,gz=modgrd@asn]
+let vel_atl = vela_atl[d=1,gz=modgrd@asn]
+let vel_pac = vela_pac[d=1,gz=modgrd@asn]
+let vel_ind = vela_ind[d=1,gz=modgrd@asn]
+
+let gmo = vel_glo[x=@sum,z=@rsum]*1e-6
+let amo = vel_atl[x=@sum,z=@rsum]*1e-6
+let pmo = vel_pac[x=@sum,z=@rsum]*1e-6
+let imo = vel_ind[x=@sum,z=@rsum]*1e-6
+
+let gmoc = gmo[y=@sbx:5,z=@sbx:3] 
+let amoc = amo[y=@sbx:5,z=@sbx:3] 
+let pmoc = pmo[y=@sbx:5,z=@sbx:3] 
+let imoc = imo[y=@sbx:5,z=@sbx:3] 
+
+let wma = if age[d=2] eq 0 then 1/0 else age[d=2]
+
+let wma_glo = if glomsk[d=3] eq 1 then wma else 1/0 
+let wma_atl = if atlmsk[d=3] eq 1 then wma else 1/0 
+let wma_pac = if pacmsk[d=3] eq 1 then wma else 1/0 
+let wma_ind = if indmsk[d=3] eq 1 then wma else 1/0 
+
+
+set reg/z=0:1500
+
+pal blue_orange
+set win/aspect=0.65/size=1.5 1
+set vi ul; sha/lev=(-inf)(-20,20,2)(inf) gmo[l=@ave]; cont/o/lev=(0,500,50) wma_glo[x=@ave,l=@ave] 
+set vi ur; sha/lev=(-inf)(-20,20,2)(inf) amo[l=@ave]; cont/o/lev=(0,500,50) wma_atl[x=@ave,l=@ave] 
+set vi ll; sha/lev=(-inf)(-20,20,2)(inf) gmoc[l=@ave]; cont/o/lev=(0,500,50) wma_pac[x=@ave,l=@ave]
+set vi lr; sha/lev=(-inf)(-20,20,2)(inf) amoc[l=@ave]; cont/o/lev=(0,500,50) wma_ind[x=@ave,l=@ave]
+
+set win/aspect=0.65/size=1.5 2
+set vi ul; sha/lev=(-inf)(-5,5,1)(inf) gmoc[l=34:43@ave] - gmoc[l=4:13@ave]; cont/o/lev=(-10,10,2) wma_glo[x=@ave,l=34:43@ave] - wma_glo[x=@ave,l=4:13@ave]              
+set vi ur; sha/lev=(-inf)(-5,5,1)(inf) amoc[l=34:43@ave] - amoc[l=4:13@ave]; cont/o/lev=(-10,10,2) wma_atl[x=@ave,l=34:43@ave] - wma_atl[x=@ave,l=4:13@ave]              
+set vi ll; sha/lev=(-inf)(-5,5,1)(inf) pmoc[l=34:43@ave] - pmoc[l=4:13@ave]; cont/o/lev=(-10,10,2) wma_pac[x=@ave,l=34:43@ave] - wma_pac[x=@ave,l=4:13@ave]
+set vi lr; sha/lev=(-inf)(-5,5,1)(inf) imoc[l=34:43@ave] - imoc[l=4:13@ave]; cont/o/lev=(-10,10,2) wma_ind[x=@ave,l=34:43@ave] - wma_ind[x=@ave,l=4:13@ave]
+
+let gmoc_shf = gmoc[l=@shf:1] - gmoc
+let amoc_shf = amoc[l=@shf:1] - amoc
+let pmoc_shf = pmoc[l=@shf:1] - pmoc
+let imoc_shf = imoc[l=@shf:1] - imoc
+let gmoc_shfave = gmoc_shf[l=4:43@ave]
+let amoc_shfave = amoc_shf[l=4:43@ave]
+let pmoc_shfave = pmoc_shf[l=4:43@ave]
+let imoc_shfave = imoc_shf[l=4:43@ave]
+
+let wma_glo_shf = wma_glo[l=@shf:1] - wma_glo
+let wma_atl_shf = wma_atl[l=@shf:1] - wma_atl
+let wma_pac_shf = wma_pac[l=@shf:1] - wma_pac
+let wma_ind_shf = wma_ind[l=@shf:1] - wma_ind
+let wma_glo_shfave = wma_glo_shf[l=4:43@ave]
+let wma_atl_shfave = wma_atl_shf[l=4:43@ave]
+let wma_pac_shfave = wma_pac_shf[l=4:43@ave]
+let wma_ind_shfave = wma_ind_shf[l=4:43@ave]
+
+set win/aspect=0.65/size=1.5 3
+set vi ul; sha/lev=(-inf)(-1,1,0.1)(inf) gmoc_shfave; cont/o/lev=(-5,5,0.5) wma_glo_shfave[x=@ave]*10 
+set vi ur; sha/lev=(-inf)(-1,1,0.1)(inf) amoc_shfave; cont/o/lev=(-5,5,0.5) wma_atl_shfave[x=@ave]*10           
+set vi ll; sha/lev=(-inf)(-1,1,0.1)(inf) pmoc_shfave; cont/o/lev=(-5,5,0.5) wma_pac_shfave[x=@ave]*10
+set vi lr; sha/lev=(-inf)(-1,1,0.1)(inf) imoc_shfave; cont/o/lev=(-5,5,0.5) wma_ind_shfave[x=@ave]*10
+
+
+can reg/all
+save/clobber/file="figure_basin_moc_age.nc" amoc
+save/append/file="figure_basin_moc_age.nc" pmoc
+save/append/file="figure_basin_moc_age.nc" imoc
+save/append/file="figure_basin_moc_age.nc" gmoc
+save/append/file="figure_basin_moc_age.nc" wma_atl[x=@ave]
+save/append/file="figure_basin_moc_age.nc" wma_pac[x=@ave]
+save/append/file="figure_basin_moc_age.nc" wma_ind[x=@ave]
+save/append/file="figure_basin_moc_age.nc" wma_glo[x=@ave]

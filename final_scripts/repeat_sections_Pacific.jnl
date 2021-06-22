@@ -1,0 +1,430 @@
+
+can data/all
+can reg/all
+can var/all
+
+use mod_oxy.nc
+use mod_tem.nc
+use mod_sal.nc
+use mod_age.nc
+use mod_wma.nc
+use mod_rem.nc
+use obs_oxy.nc
+use obs_tem.nc
+use obs_sal.nc
+use obs_age.nc
+use obs_wma.nc
+
+
+! set bad values
+set var/bad=-9999 mod_oxy[d=1]
+set var/bad=-9999 mod_tem[d=2]
+set var/bad=-9999 mod_sal[d=3]
+set var/bad=-9999 mod_age[d=4]
+set var/bad=-9999 mod_wma[d=5]
+set var/bad=-9999 mod_rem[d=6]
+set var/bad=-9999 obs_oxy[d=7]
+set var/bad=-9999 obs_tem[d=8]
+set var/bad=-9999 obs_sal[d=9]
+set var/bad=-9999 obs_age[d=10]
+set var/bad=-9999 obs_wma[d=11]
+
+
+! remove negative water mass ages from observation estimate
+let mod_agenn = if mod_age[d=4] lt 0 then 0 else mod_age[d=4]
+let obs_agenn = if obs_age[d=10] lt 0 then 0 else obs_age[d=10]
+let obs_wmann = if obs_wma[d=11] lt 0 then 0 else obs_wma[d=11]
+
+
+! put data on proper grid
+use ETOPO_JRA55_pic_1m_Age_T_1972-2019.nc
+define grid/like=age[d=12] grd
+let oxy_m = mod_oxy[d=1,g=grd@asn] 
+let tem_m = mod_tem[d=2,g=grd@asn] 
+let sal_m = mod_sal[d=3,g=grd@asn] 
+let age_m = mod_agenn[g=grd@asn] 
+let wma_m = mod_wma[d=5,g=grd@asn] 
+let rem_m = mod_rem[d=6,g=grd@asn] 
+let oxy_o = obs_oxy[d=7,g=grd@asn] 
+let tem_o = obs_tem[d=8,g=grd@asn] 
+let sal_o = obs_sal[d=9,g=grd@asn] 
+let age_o = obs_agenn[g=grd@asn] 
+let wma_o = obs_wmann[g=grd@asn] 
+
+
+! calculate potential density anomaly
+let rho_m = rho_un(sal_m,tem_m,0) - 1000
+let rho_o = rho_un(sal_o,tem_o,0) - 1000
+
+
+! calculate oxygen solubility
+let A0 = 2.00856
+let A1 = 3.22400
+let A2 = 3.99063
+let A3 = 4.80299
+let A4 = 9.78188e-1
+let A5 = 1.71069
+let B0 = -6.24097e-3
+let B1 = -6.93498e-3
+let B2 = -6.90358e-3
+let B3 = -4.29155e-3
+let C0 = -3.11680e-7
+let atcox  = 0.20946                    ! units atm
+let o2atm  = 1. / ( 1000. * 0.20946 )   !
+let oxyco  = 1. / 22.4144               ! converts from liters of an ideal gas to moles
+
+let Ts_m = ln((298.15 - tem_m) / (273.15 + tem_m))
+let Ts2_m = Ts_m*Ts_m
+let Ts3_m = Ts2_m*Ts_m
+let Ts4_m = Ts3_m*Ts_m
+let Ts5_m = Ts4_m*Ts_m
+let Ts_o = ln((298.15 - tem_o) / (273.15 + tem_o))
+let Ts2_o = Ts_o*Ts_o
+let Ts3_o = Ts2_o*Ts_o
+let Ts4_o = Ts3_o*Ts_o
+let Ts5_o = Ts4_o*Ts_o
+
+let A_m = A0 + A1*Ts_m + A2*Ts2_m + A3*Ts3_m + A4*Ts4_m + A5*Ts5_m
+let B_m = sal_m * (B0 + B1*Ts_m + B2*Ts2_m + B3*Ts3_m)
+let C_m = C0*sal_m*sal_m
+let A_o = A0 + A1*Ts_o + A2*Ts2_o + A3*Ts3_o + A4*Ts4_o + A5*Ts5_o
+let B_o = sal_o * (B0 + B1*Ts_o + B2*Ts2_o + B3*Ts3_o)
+let C_o = C0*sal_o*sal_o
+
+let sat_m = exp(A_m+B_m+C_m) * atcox*o2atm*oxyco*1e6
+let sat_o = exp(A_o+B_o+C_o) * atcox*o2atm*oxyco*1e6
+
+
+! get apparent oxygen utilisation
+let aou_m = sat_m - oxy_m
+let aou_o = sat_o - oxy_o
+
+
+! set reg for P16N
+set reg/x=208:211/y=-20:60/z=0:1000
+
+
+! calculate the change between repeat transects done in 2015 and 2008
+let oxy_m_dif = oxy_m[x=@ave,l=@ave,m=44] - oxy_m[x=@ave,l=@ave,m=37]
+let sat_m_dif = sat_m[x=@ave,l=@ave,m=44] - sat_m[x=@ave,l=@ave,m=37]
+let age_m_dif = age_m[x=@ave,l=@ave,m=44] - age_m[x=@ave,l=@ave,m=37]
+let wma_m_dif = wma_m[x=@ave,l=@ave,m=44] - wma_m[x=@ave,l=@ave,m=37]
+let aou_m_dif = aou_m[x=@ave,l=@ave,m=44] - aou_m[x=@ave,l=@ave,m=37]
+let rem_m_dif = rem_m[x=@ave,l=@ave,m=44] - rem_m[x=@ave,l=@ave,m=37]
+let oxy_o_dif = oxy_o[x=@ave,l=@ave,m=44] - oxy_o[x=@ave,l=@ave,m=37]
+let sat_o_dif = sat_o[x=@ave,l=@ave,m=44] - sat_o[x=@ave,l=@ave,m=37]
+let age_o_dif = age_o[x=@ave,l=@ave,m=44] - age_o[x=@ave,l=@ave,m=37]
+let wma_o_dif = wma_o[x=@ave,l=@ave,m=44] - wma_o[x=@ave,l=@ave,m=37]
+let aou_o_dif = aou_o[x=@ave,l=@ave,m=44] - aou_o[x=@ave,l=@ave,m=37]
+let oxy_m_dif_zave = oxy_m_dif[z=200:1000@ave]
+let sat_m_dif_zave = sat_m_dif[z=200:1000@ave]
+let age_m_dif_zave = age_m_dif[z=200:1000@ave]
+let wma_m_dif_zave = wma_m_dif[z=200:1000@ave]
+let aou_m_dif_zave = aou_m_dif[z=200:1000@ave]
+let rem_m_dif_zave = rem_m_dif[z=200:1000@ave]
+let oxy_o_dif_zave = oxy_o_dif[z=200:1000@ave]
+let sat_o_dif_zave = sat_o_dif[z=200:1000@ave]
+let age_o_dif_zave = age_o_dif[z=200:1000@ave]
+let wma_o_dif_zave = wma_o_dif[z=200:1000@ave]
+let aou_o_dif_zave = aou_o_dif[z=200:1000@ave]
+let rho_m_2008 = rho_m[x=@ave,l=@ave,m=37]
+let rho_m_2015 = rho_m[x=@ave,l=@ave,m=44]
+let rho_o_2008 = rho_o[x=@ave,l=@ave,m=37]
+let rho_o_2015 = rho_o[x=@ave,l=@ave,m=44]
+let rho_m_ave = (rho_m_2008 + rho_m_2015)*0.5
+let rho_o_ave = (rho_o_2008 + rho_o_2015)*0.5
+let dem_m_dif = rem_m_dif*wma_m_dif
+let dem_o_dif = rem_m_dif*wma_o_dif
+let dem_m_dif_zave = dem_m_dif[z=200:1000@ave]
+let dem_o_dif_zave = dem_o_dif[z=200:1000@ave]
+
+
+!! Look at the differences between O2, sat, age, and modelled remineralisation
+!pal blue_orange
+!
+!set win/aspect=0.35/size=1.5 1
+!set vi left; sha/title="modelled oxygen change"/lev=(-inf)(-20,20,2)(inf) oxy_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2015
+!set vi right; sha/title="observed oxygen change"/lev=(-inf)(-20,20,2)(inf) oxy_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2015
+!
+!set win/aspect=0.35/size=1.5 2
+!set vi left; sha/title="modelled saturation change"/lev=(-inf)(-20,20,2)(inf) sat_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2015
+!set vi right; sha/title="observed saturation change"/lev=(-inf)(-20,20,2)(inf) sat_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2015
+!
+!set win/aspect=0.35/size=1.5 3
+!set vi left; sha/title="modelled aou change"/lev=(-inf)(-20,20,2)(inf) aou_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2015
+!set vi right; sha/title="observed aou change"/lev=(-inf)(-20,20,2)(inf) aou_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2015
+!
+!set win/aspect=0.35/size=1.5 4
+!set vi left; sha/title="modelled CFC/SF6-age change"/lev=(-inf)(-10,10,1)(inf) age_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2015
+!set vi right; sha/title="observed CFC/SF6-age change"/lev=(-inf)(-10,10,1)(inf) age_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2015
+!
+!set win/aspect=0.35/size=1.5 5
+!set vi left; sha/title="modelled water mass age change"/lev=(-inf)(-100,100,5)(inf) wma_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2015
+!set vi right; sha/title="observed water mass age change"/lev=(-inf)(-100,100,5)(inf) wma_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2015
+!
+!set win/aspect=0.35/size=1.5 6
+!set vi left;  sha/title="modelled biological demand change (mmol O2 / m3)"/lev=(-inf)(-10,10,1)(inf) dem_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.0) rho_m_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.0)/color=red rho_m_2015
+!set vi right; sha/title="observed biological demand change (mmol O2 / m3)"/lev=(-inf)(-10,10,1)(inf) dem_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.0) rho_o_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.0)/color=red rho_o_2015
+
+
+! put values on density to look at change on surfaces
+let oxy_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then oxy_m_dif else 1/0
+let sat_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then sat_m_dif else 1/0
+let aou_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then aou_m_dif else 1/0
+let wma_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then wma_m_dif else 1/0
+let dem_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then dem_m_dif else 1/0
+let oxy_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then oxy_o_dif else 1/0
+let sat_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then sat_o_dif else 1/0
+let aou_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then aou_o_dif else 1/0
+let wma_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then wma_o_dif else 1/0
+let dem_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then dem_o_dif else 1/0
+
+!set win/aspect=0.35/size=1.5 7
+!set vi left;  plot/vlim=-80:80 oxy_m_dif_26p0_26p5[z=@ave], sat_m_dif_26p0_26p5[z=@ave], aou_m_dif_26p0_26p5[z=@ave]*(-1), dem_m_dif_26p0_26p5[z=@ave]
+!set vi right; plot/vlim=-80:80 oxy_o_dif_26p0_26p5[z=@ave], sat_o_dif_26p0_26p5[z=@ave], aou_o_dif_26p0_26p5[z=@ave]*(-1), dem_o_dif_26p0_26p5[z=@ave]
+!
+!set win/aspect=0.35/size=1.5 8
+!set vi left;  plot/vlim=-80:80 wma_m_dif_26p0_26p5[z=@ave]
+!set vi right; plot/vlim=-80:80 wma_o_dif_26p0_26p5[z=@ave]
+
+
+save/clobber/file="repeat_section_P16N.nc" oxy_m_dif, oxy_o_dif
+save/append/file="repeat_section_P16N.nc" sat_m_dif, sat_o_dif
+save/append/file="repeat_section_P16N.nc" aou_m_dif, aou_o_dif
+save/append/file="repeat_section_P16N.nc" age_m_dif, age_o_dif
+save/append/file="repeat_section_P16N.nc" wma_m_dif, wma_o_dif
+save/append/file="repeat_section_P16N.nc" dem_m_dif, dem_o_dif
+save/append/file="repeat_section_P16N.nc" oxy_m_dif_zave, oxy_o_dif_zave
+save/append/file="repeat_section_P16N.nc" sat_m_dif_zave, sat_o_dif_zave
+save/append/file="repeat_section_P16N.nc" aou_m_dif_zave, aou_o_dif_zave
+save/append/file="repeat_section_P16N.nc" age_m_dif_zave, age_o_dif_zave
+save/append/file="repeat_section_P16N.nc" wma_m_dif_zave, wma_o_dif_zave
+save/append/file="repeat_section_P16N.nc" dem_m_dif_zave, dem_o_dif_zave
+save/append/file="repeat_section_P16N.nc" rem_m_dif, rho_m_2008, rho_m_2015, rho_o_2008, rho_o_2015
+save/append/file="repeat_section_P16N.nc" oxy_m_dif_26p0_26p5[z=@ave], sat_m_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P16N.nc" aou_m_dif_26p0_26p5[z=@ave], wma_m_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P16N.nc" oxy_o_dif_26p0_26p5[z=@ave], sat_o_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P16N.nc" aou_o_dif_26p0_26p5[z=@ave], wma_o_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P16N.nc" dem_m_dif_26p0_26p5[z=@ave], dem_o_dif_26p0_26p5[z=@ave]
+
+
+message
+
+! set reg for P18
+set reg/x=249:260/y=-80:-20/z=0:1000
+
+
+! calculate the change between repeat transects done in 2016/17 and 2007/08
+let oxy_m_dif = oxy_m[x=@ave,l=@ave,m=45:46@ave] - oxy_m[x=@ave,l=@ave,m=36:37@ave]
+let sat_m_dif = sat_m[x=@ave,l=@ave,m=45:46@ave] - sat_m[x=@ave,l=@ave,m=36:37@ave]
+let age_m_dif = age_m[x=@ave,l=@ave,m=45:46@ave] - age_m[x=@ave,l=@ave,m=36:37@ave]
+let wma_m_dif = wma_m[x=@ave,l=@ave,m=45:46@ave] - wma_m[x=@ave,l=@ave,m=36:37@ave]
+let aou_m_dif = aou_m[x=@ave,l=@ave,m=45:46@ave] - aou_m[x=@ave,l=@ave,m=36:37@ave]
+let rem_m_dif = rem_m[x=@ave,l=@ave,m=45:46@ave] - rem_m[x=@ave,l=@ave,m=36:37@ave]
+let oxy_o_dif = oxy_o[x=@ave,l=@ave,m=45:46@ave] - oxy_o[x=@ave,l=@ave,m=36:37@ave]
+let sat_o_dif = sat_o[x=@ave,l=@ave,m=45:46@ave] - sat_o[x=@ave,l=@ave,m=36:37@ave]
+let age_o_dif = age_o[x=@ave,l=@ave,m=45:46@ave] - age_o[x=@ave,l=@ave,m=36:37@ave]
+let wma_o_dif = wma_o[x=@ave,l=@ave,m=45:46@ave] - wma_o[x=@ave,l=@ave,m=36:37@ave]
+let aou_o_dif = aou_o[x=@ave,l=@ave,m=45:46@ave] - aou_o[x=@ave,l=@ave,m=36:37@ave]
+let oxy_m_dif_zave = oxy_m_dif[z=200:1000@ave]
+let sat_m_dif_zave = sat_m_dif[z=200:1000@ave]
+let age_m_dif_zave = age_m_dif[z=200:1000@ave]
+let wma_m_dif_zave = wma_m_dif[z=200:1000@ave]
+let aou_m_dif_zave = aou_m_dif[z=200:1000@ave]
+let rem_m_dif_zave = rem_m_dif[z=200:1000@ave]
+let oxy_o_dif_zave = oxy_o_dif[z=200:1000@ave]
+let sat_o_dif_zave = sat_o_dif[z=200:1000@ave]
+let age_o_dif_zave = age_o_dif[z=200:1000@ave]
+let wma_o_dif_zave = wma_o_dif[z=200:1000@ave]
+let aou_o_dif_zave = aou_o_dif[z=200:1000@ave]
+let rho_m_2007_2008 = rho_m[x=@ave,l=@ave,m=36:37@ave]
+let rho_m_2016_2017 = rho_m[x=@ave,l=@ave,m=45:46@ave]
+let rho_o_2007_2008 = rho_o[x=@ave,l=@ave,m=36:37@ave]
+let rho_o_2016_2017 = rho_o[x=@ave,l=@ave,m=45:46@ave]
+let rho_m_ave = (rho_m_2007_2008 + rho_m_2016_2017)*0.5
+let rho_o_ave = (rho_o_2007_2008 + rho_o_2016_2017)*0.5
+let dem_m_dif = rem_m_dif*wma_m_dif
+let dem_o_dif = rem_m_dif*wma_o_dif
+let dem_m_dif_zave = dem_m_dif[z=200:1000@ave]
+let dem_o_dif_zave = dem_o_dif[z=200:1000@ave]
+
+
+!! Look at the differences between O2, sat, age, and modelled remineralisation
+!pal blue_orange
+
+!set win/aspect=0.35/size=1.5 1
+!set vi left; sha/title="modelled oxygen change"/lev=(-inf)(-20,20,2)(inf) oxy_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2016_2017
+!set vi right; sha/title="observed oxygen change"/lev=(-inf)(-20,20,2)(inf) oxy_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2016_2017
+!
+!set win/aspect=0.35/size=1.5 2
+!set vi left; sha/title="modelled saturation change"/lev=(-inf)(-20,20,2)(inf) sat_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2016_2017
+!set vi right; sha/title="observed saturation change"/lev=(-inf)(-20,20,2)(inf) sat_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2016_2017
+!
+!set win/aspect=0.35/size=1.5 3
+!set vi left; sha/title="modelled aou change"/lev=(-inf)(-20,20,2)(inf) aou_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2016_2017
+!set vi right; sha/title="observed aou change"/lev=(-inf)(-20,20,2)(inf) aou_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2016_2017
+!
+!set win/aspect=0.35/size=1.5 4
+!set vi left; sha/title="modelled CFC/SF6-age change"/lev=(-inf)(-10,10,1)(inf) age_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2016_2017
+!set vi right; sha/title="observed CFC/SF6-age change"/lev=(-inf)(-10,10,1)(inf) age_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2016_2017
+
+!set win/aspect=0.35/size=1.5 5
+!set vi left; sha/title="modelled water mass age change"/lev=(-inf)(-100,100,5)(inf) wma_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2016_2017
+!set vi right; sha/title="observed water mass age change"/lev=(-inf)(-100,100,5)(inf) wma_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2016_2017
+
+!set win/aspect=0.35/size=1.5 6
+!set vi left;  sha/title="modelled biological demand change (mmol O2 / m3)"/lev=(-inf)(-10,10,1)(inf) dem_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.0) rho_m_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.0)/color=red rho_m_2016_2017
+!set vi right; sha/title="observed biological demand change (mmol O2 / m3)"/lev=(-inf)(-10,10,1)(inf) dem_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.0) rho_o_2007_2008; cont/o/lev=(26.0)(26.5)(27.0)(27.0)/color=red rho_o_2016_2017
+
+
+! put values on density to look at change on surfaces
+let oxy_m_dif_26p5_27p0 = if rho_m_ave ge 26.5 and rho_m_ave le 27.0 then oxy_m_dif else 1/0
+let sat_m_dif_26p5_27p0 = if rho_m_ave ge 26.5 and rho_m_ave le 27.0 then sat_m_dif else 1/0
+let aou_m_dif_26p5_27p0 = if rho_m_ave ge 26.5 and rho_m_ave le 27.0 then aou_m_dif else 1/0
+let wma_m_dif_26p5_27p0 = if rho_m_ave ge 26.5 and rho_m_ave le 27.0 then wma_m_dif else 1/0
+let dem_m_dif_26p5_27p0 = if rho_m_ave ge 26.5 and rho_m_ave le 27.0 then dem_m_dif else 1/0
+let oxy_o_dif_26p5_27p0 = if rho_o_ave ge 26.5 and rho_o_ave le 27.0 then oxy_o_dif else 1/0
+let sat_o_dif_26p5_27p0 = if rho_o_ave ge 26.5 and rho_o_ave le 27.0 then sat_o_dif else 1/0
+let aou_o_dif_26p5_27p0 = if rho_o_ave ge 26.5 and rho_o_ave le 27.0 then aou_o_dif else 1/0
+let wma_o_dif_26p5_27p0 = if rho_o_ave ge 26.5 and rho_o_ave le 27.0 then wma_o_dif else 1/0
+let dem_o_dif_26p5_27p0 = if rho_o_ave ge 26.5 and rho_o_ave le 27.0 then dem_o_dif else 1/0
+
+!set win/aspect=0.35/size=1.5 7
+!set vi left;  plot/vlim=-80:80 oxy_m_dif_26p5_27p0[z=@ave], sat_m_dif_26p5_27p0[z=@ave], aou_m_dif_26p5_27p0[z=@ave]*(-1), dem_m_dif_26p5_27p0[z=@ave]
+!set vi right; plot/vlim=-80:80 oxy_o_dif_26p5_27p0[z=@ave], sat_o_dif_26p5_27p0[z=@ave], aou_o_dif_26p5_27p0[z=@ave]*(-1), dem_o_dif_26p5_27p0[z=@ave]
+!
+!set win/aspect=0.35/size=1.5 8
+!set vi left;  plot/vlim=-80:80 wma_m_dif_26p5_27p0[z=@ave]
+!set vi right; plot/vlim=-80:80 wma_o_dif_26p5_27p0[z=@ave]
+
+
+save/clobber/file="repeat_section_P18.nc" oxy_m_dif, oxy_o_dif
+save/append/file="repeat_section_P18.nc" sat_m_dif, sat_o_dif
+save/append/file="repeat_section_P18.nc" aou_m_dif, aou_o_dif
+save/append/file="repeat_section_P18.nc" age_m_dif, age_o_dif
+save/append/file="repeat_section_P18.nc" wma_m_dif, wma_o_dif
+save/append/file="repeat_section_P18.nc" dem_m_dif, dem_o_dif
+save/append/file="repeat_section_P18.nc" oxy_m_dif_zave, oxy_o_dif_zave
+save/append/file="repeat_section_P18.nc" sat_m_dif_zave, sat_o_dif_zave
+save/append/file="repeat_section_P18.nc" aou_m_dif_zave, aou_o_dif_zave
+save/append/file="repeat_section_P18.nc" age_m_dif_zave, age_o_dif_zave
+save/append/file="repeat_section_P18.nc" wma_m_dif_zave, wma_o_dif_zave
+save/append/file="repeat_section_P18.nc" dem_m_dif_zave, dem_o_dif_zave
+save/append/file="repeat_section_P18.nc" rem_m_dif, rho_m_2007_2008, rho_m_2016_2017, rho_o_2007_2008, rho_o_2016_2017
+save/append/file="repeat_section_P18.nc" oxy_m_dif_26p5_27p0[z=@ave], sat_m_dif_26p5_27p0[z=@ave]
+save/append/file="repeat_section_P18.nc" aou_m_dif_26p5_27p0[z=@ave], wma_m_dif_26p5_27p0[z=@ave]
+save/append/file="repeat_section_P18.nc" oxy_o_dif_26p5_27p0[z=@ave], sat_o_dif_26p5_27p0[z=@ave]
+save/append/file="repeat_section_P18.nc" aou_o_dif_26p5_27p0[z=@ave], wma_o_dif_26p5_27p0[z=@ave]
+save/append/file="repeat_section_P18.nc" dem_m_dif_26p5_27p0[z=@ave], dem_o_dif_26p5_27p0[z=@ave]
+
+
+
+message
+
+! set reg for P02
+set reg/x=130:240/y=39:50/z=0:1000
+
+
+! calculate the change between repeat transects done in 2013 and 1985
+let oxy_m_dif = oxy_m[y=@ave,l=@ave,m=43] - oxy_m[y=@ave,l=@ave,m=14]
+let sat_m_dif = sat_m[y=@ave,l=@ave,m=43] - sat_m[y=@ave,l=@ave,m=14]
+let age_m_dif = age_m[y=@ave,l=@ave,m=43] - age_m[y=@ave,l=@ave,m=14]
+let wma_m_dif = wma_m[y=@ave,l=@ave,m=43] - wma_m[y=@ave,l=@ave,m=14]
+let aou_m_dif = aou_m[y=@ave,l=@ave,m=43] - aou_m[y=@ave,l=@ave,m=14]
+let rem_m_dif = rem_m[y=@ave,l=@ave,m=43] - rem_m[y=@ave,l=@ave,m=14]
+let oxy_o_dif = oxy_o[y=@ave,l=@ave,m=43] - oxy_o[y=@ave,l=@ave,m=14]
+let sat_o_dif = sat_o[y=@ave,l=@ave,m=43] - sat_o[y=@ave,l=@ave,m=14]
+let age_o_dif = age_o[y=@ave,l=@ave,m=43] - age_o[y=@ave,l=@ave,m=14]
+let wma_o_dif = wma_o[y=@ave,l=@ave,m=43] - wma_o[y=@ave,l=@ave,m=14]
+let aou_o_dif = aou_o[y=@ave,l=@ave,m=43] - aou_o[y=@ave,l=@ave,m=14]
+let oxy_m_dif_zave = oxy_m_dif[z=200:1000@ave]
+let sat_m_dif_zave = sat_m_dif[z=200:1000@ave]
+let age_m_dif_zave = age_m_dif[z=200:1000@ave]
+let wma_m_dif_zave = wma_m_dif[z=200:1000@ave]
+let aou_m_dif_zave = aou_m_dif[z=200:1000@ave]
+let rem_m_dif_zave = rem_m_dif[z=200:1000@ave]
+let oxy_o_dif_zave = oxy_o_dif[z=200:1000@ave]
+let sat_o_dif_zave = sat_o_dif[z=200:1000@ave]
+let age_o_dif_zave = age_o_dif[z=200:1000@ave]
+let wma_o_dif_zave = wma_o_dif[z=200:1000@ave]
+let aou_o_dif_zave = aou_o_dif[z=200:1000@ave]
+let rho_m_1985 = rho_m[y=@ave,l=@ave,m=14]
+let rho_m_2013 = rho_m[y=@ave,l=@ave,m=43]
+let rho_o_1985 = rho_o[y=@ave,l=@ave,m=14]
+let rho_o_2013 = rho_o[y=@ave,l=@ave,m=43]
+let rho_m_ave = (rho_m_1985 + rho_m_2013)*0.5
+let rho_o_ave = (rho_o_1985 + rho_o_2013)*0.5
+let dem_m_dif = rem_m_dif*wma_m_dif
+let dem_o_dif = rem_m_dif*wma_o_dif
+let dem_m_dif_zave = dem_m_dif[z=200:1000@ave]
+let dem_o_dif_zave = dem_o_dif[z=200:1000@ave]
+
+
+!! Look at the differences between O2, sat, age, and modelled remineralisation
+!pal blue_orange
+!
+!set win/aspect=0.35/size=1.5 1
+!set vi left; sha/title="modelled oxygen change"/lev=(-inf)(-20,20,2)(inf) oxy_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2013
+!set vi right; sha/title="observed oxygen change"/lev=(-inf)(-20,20,2)(inf) oxy_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2013
+!
+!set win/aspect=0.35/size=1.5 2
+!set vi left; sha/title="modelled saturation change"/lev=(-inf)(-20,20,2)(inf) sat_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2013
+!set vi right; sha/title="observed saturation change"/lev=(-inf)(-20,20,2)(inf) sat_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2013
+!
+!set win/aspect=0.35/size=1.5 3
+!set vi left; sha/title="modelled aou change"/lev=(-inf)(-20,20,2)(inf) aou_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2013
+!set vi right; sha/title="observed aou change"/lev=(-inf)(-20,20,2)(inf) aou_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2013
+!
+!!set win/aspect=0.35/size=1.5 4
+!!set vi left; sha/title="modelled CFC/SF6-age change"/lev=(-inf)(-10,10,1)(inf) age_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2013
+!!set vi right; sha/title="observed CFC/SF6-age change"/lev=(-inf)(-10,10,1)(inf) age_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2013
+!
+!set win/aspect=0.35/size=1.5 5
+!set vi left; sha/title="modelled water mass age change"/lev=(-inf)(-100,100,5)(inf) wma_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_m_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_m_2013
+!set vi right; sha/title="observed water mass age change"/lev=(-inf)(-100,100,5)(inf) wma_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.4) rho_o_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.4)/color=red rho_o_2013
+!
+!set win/aspect=0.35/size=1.5 6
+!set vi left;  sha/title="modelled biological demand change (mmol O2 / m3)"/lev=(-inf)(-10,10,1)(inf) dem_m_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.0) rho_m_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.0)/color=red rho_m_2013
+!set vi right; sha/title="observed biological demand change (mmol O2 / m3)"/lev=(-inf)(-10,10,1)(inf) dem_o_dif; cont/o/lev=(26.0)(26.5)(27.0)(27.0) rho_o_1985; cont/o/lev=(26.0)(26.5)(27.0)(27.0)/color=red rho_o_2013
+
+
+! put values on density to look at change on surfaces
+let oxy_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then oxy_m_dif else 1/0
+let sat_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then sat_m_dif else 1/0
+let aou_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then aou_m_dif else 1/0
+let wma_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then wma_m_dif else 1/0
+let dem_m_dif_26p0_26p5 = if rho_m_ave ge 26.0 and rho_m_ave le 26.5 then dem_m_dif else 1/0
+let oxy_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then oxy_o_dif else 1/0
+let sat_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then sat_o_dif else 1/0
+let aou_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then aou_o_dif else 1/0
+let wma_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then wma_o_dif else 1/0
+let dem_o_dif_26p0_26p5 = if rho_o_ave ge 26.0 and rho_o_ave le 26.5 then dem_o_dif else 1/0
+
+!set win/aspect=0.35/size=1.5 7
+!set vi left;  plot/vlim=-80:80 oxy_m_dif_26p0_26p5[z=@ave], sat_m_dif_26p0_26p5[z=@ave], aou_m_dif_26p0_26p5[z=@ave]*(-1), dem_m_dif_26p0_26p5[z=@ave]
+!set vi right; plot/vlim=-80:80 oxy_o_dif_26p0_26p5[z=@ave], sat_o_dif_26p0_26p5[z=@ave], aou_o_dif_26p0_26p5[z=@ave]*(-1), dem_o_dif_26p0_26p5[z=@ave]
+!
+!set win/aspect=0.35/size=1.5 8
+!set vi left;  plot/vlim=-80:80 wma_m_dif_26p0_26p5[z=@ave]
+!set vi right; plot/vlim=-80:80 wma_o_dif_26p0_26p5[z=@ave]
+
+
+save/clobber/file="repeat_section_P02.nc" oxy_m_dif, oxy_o_dif
+save/append/file="repeat_section_P02.nc" sat_m_dif, sat_o_dif
+save/append/file="repeat_section_P02.nc" aou_m_dif, aou_o_dif
+save/append/file="repeat_section_P02.nc" age_m_dif, age_o_dif
+save/append/file="repeat_section_P02.nc" wma_m_dif, wma_o_dif
+save/append/file="repeat_section_P02.nc" dem_m_dif, dem_o_dif
+save/append/file="repeat_section_P02.nc" oxy_m_dif_zave, oxy_o_dif_zave
+save/append/file="repeat_section_P02.nc" sat_m_dif_zave, sat_o_dif_zave
+save/append/file="repeat_section_P02.nc" aou_m_dif_zave, aou_o_dif_zave
+save/append/file="repeat_section_P02.nc" age_m_dif_zave, age_o_dif_zave
+save/append/file="repeat_section_P02.nc" wma_m_dif_zave, wma_o_dif_zave
+save/append/file="repeat_section_P02.nc" dem_m_dif_zave, dem_o_dif_zave
+save/append/file="repeat_section_P02.nc" rem_m_dif, rho_m_1985, rho_m_2013, rho_o_1985, rho_o_2013
+save/append/file="repeat_section_P02.nc" oxy_m_dif_26p0_26p5[z=@ave], sat_m_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P02.nc" aou_m_dif_26p0_26p5[z=@ave], wma_m_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P02.nc" oxy_o_dif_26p0_26p5[z=@ave], sat_o_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P02.nc" aou_o_dif_26p0_26p5[z=@ave], wma_o_dif_26p0_26p5[z=@ave]
+save/append/file="repeat_section_P02.nc" dem_m_dif_26p0_26p5[z=@ave], dem_o_dif_26p0_26p5[z=@ave]
+

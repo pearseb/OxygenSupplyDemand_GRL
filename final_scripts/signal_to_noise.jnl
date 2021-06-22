@@ -1,0 +1,310 @@
+set mem/size=4000
+
+can data/all
+can reg/all
+can var/all
+
+
+use ETOPO_JRA55_ndep_1y_oxygen_T_1972-2019.nc
+use ETOPO_JRA55_pic_1y_age_T_1972-2019.nc
+use ETOPO_JRA55_pic_1y_ts_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_reminnitr_T_1972-2019.nc
+use ETOPO_JRA55_ndep_1y_prod_T_1972-2019.nc
+
+
+let oxy = if abioo2[d=1] eq 0 then 1/0 else o2[d=1]
+let ao2 = if abioo2[d=1] eq 0 then 1/0 else abioo2[d=1]
+let tou = ao2-oxy
+let wma = if abioo2[d=1] eq 0 then 1/0 else age[d=2]
+let tem = if abioo2[d=1] eq 0 then 1/0 else thetao[d=3]
+let sal = if abioo2[d=1] eq 0 then 1/0 else so[d=3]
+let rho = rho_un(sal,tem,0)-1000
+go /users/pearseb/analysis_oxygen/o2sat.jnl tem sal sat
+let aou = sat - oxy
+let rem = (remin[d=4]*(133/122.0) + nitr[d=4]*2.0)*1e3
+let pro = (ppphyn[d=5] + ppphyd[d=5])*(133/122.0)*1e3
+let dem = rem - pro
+
+
+let ny = 40
+define axis/t=1:48:1 tax
+set reg/t=4:43
+
+let oxy2 = oxy[gt=tax@asn]
+let ao22 = ao2[gt=tax@asn]
+let tou2 = tou[gt=tax@asn]
+let wma2 = wma[gt=tax@asn]
+let sat2 = sat[gt=tax@asn]
+let aou2 = aou[gt=tax@asn]
+let rho2 = rho[gt=tax@asn]
+let dem2 = dem[gt=tax@asn]
+
+let oxy_tre = (oxy2[t=34:43@ave] - oxy2[t=4:13@ave])/30.0
+let oxy_err = (oxy_tre*t[gt=tax] + oxy2[t=4:13@ave]) - oxy2
+let oxy_std = oxy_err[l=@std]
+let oxy_s2n = (ny*oxy_tre) / oxy_std
+
+let ao2_tre = (ao22[t=34:43@ave] - ao22[t=4:13@ave])/30.0
+let ao2_err = (ao2_tre*t[gt=tax] + ao22[t=4:13@ave]) - ao22
+let ao2_std = ao2_err[l=@std]
+let ao2_s2n = (ny*ao2_tre) / ao2_std
+
+let sat_tre = (sat2[t=34:43@ave] - sat2[t=4:13@ave])/30.0
+let sat_err = (sat_tre*t[gt=tax] + sat2[t=4:13@ave]) - sat2
+let sat_std = sat_err[l=@std]
+let sat_s2n = (ny*sat_tre) / sat_std
+
+let tou_tre = (tou2[t=34:43@ave] - tou2[t=4:13@ave])/30.0
+let tou_err = (tou_tre*t[gt=tax] + tou2[t=4:13@ave]) - tou2
+let tou_std = tou_err[l=@std]
+let tou_s2n = (ny*tou_tre) / tou_std
+
+let aou_tre = (aou2[t=34:43@ave] - aou2[t=4:13@ave])/30.0
+let aou_err = (aou_tre*t[gt=tax] + aou2[t=4:13@ave]) - aou2
+let aou_std = aou_err[l=@std]
+let aou_s2n = (ny*aou_tre) / aou_std
+
+let wma_tre = (wma2[t=34:43@ave] - wma2[t=4:13@ave])/30.0
+let wma_err = (wma_tre*t[gt=tax] + wma2[t=4:13@ave]) - wma2
+let wma_std = wma_err[l=@std]
+let wma_s2n = (ny*wma_tre) / wma_std
+
+let dem_tre = (dem2[t=34:43@ave] - dem2[t=4:13@ave])/30.0
+let dem_err = (dem_tre*t[gt=tax] + dem2[t=4:13@ave]) - dem2
+let dem_std = dem_err[l=@std]
+let dem_s2n = (ny*dem_tre) / dem_std
+
+
+set reg/k=20
+set win/aspect=0.65/size=1.5 1
+set vi ul; sha/lev=(-inf)(-0.5,0.5,0.05)(inf)/pal=blue_orange oxy_tre; go fland 
+set vi ur; sha/lev=(-inf)(-5,5,0.5)(inf)/pal=blue_orange oxy_err[l=20]; go fland
+set vi ll; sha/lev=(0,5,0.2)(inf) oxy_std; go fland
+set vi lr; sha/lev=(-inf)(-5,5,0.25)(inf)/pal=blue_orange oxy_s2n; cont/o/lev=(-1)(1); go fland
+can reg/k
+
+set reg/k=20
+set win/aspect=0.65/size=1.5 2
+set vi ul; sha/lev=(-inf)(-0.5,0.5,0.05)(inf)/pal=blue_orange ao2_tre; go fland 
+set vi ur; sha/lev=(-inf)(-5,5,0.5)(inf)/pal=blue_orange ao2_err[l=20]; go fland
+set vi ll; sha/lev=(0,5,0.2)(inf) ao2_std; go fland
+set vi lr; sha/lev=(-inf)(-5,5,0.25)(inf)/pal=blue_orange ao2_s2n; cont/o/lev=(-1)(1); go fland
+can reg/k
+
+set reg/k=20
+set win/aspect=0.65/size=1.5 3
+set vi ul; sha/lev=(-inf)(-0.5,0.5,0.05)(inf)/pal=blue_orange tou_tre; go fland 
+set vi ur; sha/lev=(-inf)(-5,5,0.5)(inf)/pal=blue_orange tou_err[l=20]; go fland
+set vi ll; sha/lev=(0,5,0.2)(inf) tou_std; go fland
+set vi lr; sha/lev=(-inf)(-5,5,0.25)(inf)/pal=blue_orange tou_s2n; cont/o/lev=(-1)(1); go fland
+can reg/k
+
+set reg/k=20
+set win/aspect=0.65/size=1.5 4
+set vi ul; sha/lev=(-inf)(-0.5,0.5,0.05)(inf)/pal=blue_orange wma_tre; go fland 
+set vi ur; sha/lev=(-inf)(-5,5,0.5)(inf)/pal=blue_orange wma_err[l=20]; go fland
+set vi ll; sha/lev=(0,5,0.2)(inf) wma_std; go fland
+set vi lr; sha/lev=(-inf)(-5,5,0.25)(inf)/pal=blue_orange wma_s2n; cont/o/lev=(-1)(1); go fland
+can reg/k
+
+let rho_ave = rho2[t=@ave]
+
+set reg/z=200:1000
+save/clobber/file="figure_signal_to_noise.nc" oxy_tre[z=@ave], oxy_std[z=@ave], oxy_s2n[z=@ave] 
+save/append/file="figure_signal_to_noise.nc"  ao2_tre[z=@ave], ao2_std[z=@ave], ao2_s2n[z=@ave]
+save/append/file="figure_signal_to_noise.nc"  sat_tre[z=@ave], sat_std[z=@ave], sat_s2n[z=@ave]
+save/append/file="figure_signal_to_noise.nc"  tou_tre[z=@ave], tou_std[z=@ave], tou_s2n[z=@ave]
+save/append/file="figure_signal_to_noise.nc"  aou_tre[z=@ave], aou_std[z=@ave], aou_s2n[z=@ave]
+save/append/file="figure_signal_to_noise.nc"  wma_tre[z=@ave], wma_std[z=@ave], wma_s2n[z=@ave]
+save/append/file="figure_signal_to_noise.nc"  dem_tre[z=@ave], dem_std[z=@ave], dem_s2n[z=@ave]
+
+can reg/z
+
+save/append/file="figure_signal_to_noise.nc"  rho_ave
+
+
+define axis/z=25.0:28.0:0.05 rhoax
+
+let oxy_tre_zrho = zaxreplace(oxy_tre,rho_ave,z[gz=rhoax])
+let oxy_std_zrho = zaxreplace(oxy_std,rho_ave,z[gz=rhoax])
+let oxy_s2n_zrho = zaxreplace(oxy_s2n,rho_ave,z[gz=rhoax])
+let ao2_tre_zrho = zaxreplace(ao2_tre,rho_ave,z[gz=rhoax])
+let ao2_std_zrho = zaxreplace(ao2_std,rho_ave,z[gz=rhoax])
+let ao2_s2n_zrho = zaxreplace(ao2_s2n,rho_ave,z[gz=rhoax])
+let sat_tre_zrho = zaxreplace(sat_tre,rho_ave,z[gz=rhoax])
+let sat_std_zrho = zaxreplace(sat_std,rho_ave,z[gz=rhoax])
+let sat_s2n_zrho = zaxreplace(sat_s2n,rho_ave,z[gz=rhoax])
+let tou_tre_zrho = zaxreplace(tou_tre,rho_ave,z[gz=rhoax])
+let tou_std_zrho = zaxreplace(tou_std,rho_ave,z[gz=rhoax])
+let tou_s2n_zrho = zaxreplace(tou_s2n,rho_ave,z[gz=rhoax])
+let aou_tre_zrho = zaxreplace(aou_tre,rho_ave,z[gz=rhoax])
+let aou_std_zrho = zaxreplace(aou_std,rho_ave,z[gz=rhoax])
+let aou_s2n_zrho = zaxreplace(aou_s2n,rho_ave,z[gz=rhoax])
+let wma_tre_zrho = zaxreplace(wma_tre,rho_ave,z[gz=rhoax])
+let wma_std_zrho = zaxreplace(wma_std,rho_ave,z[gz=rhoax])
+let wma_s2n_zrho = zaxreplace(wma_s2n,rho_ave,z[gz=rhoax])
+let dem_tre_zrho = zaxreplace(dem_tre,rho_ave,z[gz=rhoax])
+let dem_std_zrho = zaxreplace(dem_std,rho_ave,z[gz=rhoax])
+let dem_s2n_zrho = zaxreplace(dem_s2n,rho_ave,z[gz=rhoax])
+
+
+let oxy_tre_zrho_26p0_26p5 = oxy_tre_zrho[z=26.0:26.5@ave]
+let oxy_std_zrho_26p0_26p5 = oxy_std_zrho[z=26.0:26.5@ave]
+let oxy_s2n_zrho_26p0_26p5 = oxy_s2n_zrho[z=26.0:26.5@ave]
+let oxy_tre_zrho_26p5_27p0 = oxy_tre_zrho[z=26.5:27.0@ave]
+let oxy_std_zrho_26p5_27p0 = oxy_std_zrho[z=26.5:27.0@ave]
+let oxy_s2n_zrho_26p5_27p0 = oxy_s2n_zrho[z=26.5:27.0@ave]
+let oxy_tre_zrho_27p0_27p4 = oxy_tre_zrho[z=27.0:27.4@ave]
+let oxy_std_zrho_27p0_27p4 = oxy_std_zrho[z=27.0:27.4@ave]
+let oxy_s2n_zrho_27p0_27p4 = oxy_s2n_zrho[z=27.0:27.4@ave]
+let ao2_tre_zrho_26p0_26p5 = ao2_tre_zrho[z=26.0:26.5@ave]
+let ao2_std_zrho_26p0_26p5 = ao2_std_zrho[z=26.0:26.5@ave]
+let ao2_s2n_zrho_26p0_26p5 = ao2_s2n_zrho[z=26.0:26.5@ave]
+let ao2_tre_zrho_26p5_27p0 = ao2_tre_zrho[z=26.5:27.0@ave]
+let ao2_std_zrho_26p5_27p0 = ao2_std_zrho[z=26.5:27.0@ave]
+let ao2_s2n_zrho_26p5_27p0 = ao2_s2n_zrho[z=26.5:27.0@ave]
+let ao2_tre_zrho_27p0_27p4 = ao2_tre_zrho[z=27.0:27.4@ave]
+let ao2_std_zrho_27p0_27p4 = ao2_std_zrho[z=27.0:27.4@ave]
+let ao2_s2n_zrho_27p0_27p4 = ao2_s2n_zrho[z=27.0:27.4@ave]
+let sat_tre_zrho_26p0_26p5 = sat_tre_zrho[z=26.0:26.5@ave]
+let sat_std_zrho_26p0_26p5 = sat_std_zrho[z=26.0:26.5@ave]
+let sat_s2n_zrho_26p0_26p5 = sat_s2n_zrho[z=26.0:26.5@ave]
+let sat_tre_zrho_26p5_27p0 = sat_tre_zrho[z=26.5:27.0@ave]
+let sat_std_zrho_26p5_27p0 = sat_std_zrho[z=26.5:27.0@ave]
+let sat_s2n_zrho_26p5_27p0 = sat_s2n_zrho[z=26.5:27.0@ave]
+let sat_tre_zrho_27p0_27p4 = sat_tre_zrho[z=27.0:27.4@ave]
+let sat_std_zrho_27p0_27p4 = sat_std_zrho[z=27.0:27.4@ave]
+let sat_s2n_zrho_27p0_27p4 = sat_s2n_zrho[z=27.0:27.4@ave]
+let tou_tre_zrho_26p0_26p5 = tou_tre_zrho[z=26.0:26.5@ave]
+let tou_std_zrho_26p0_26p5 = tou_std_zrho[z=26.0:26.5@ave]
+let tou_s2n_zrho_26p0_26p5 = tou_s2n_zrho[z=26.0:26.5@ave]
+let tou_tre_zrho_26p5_27p0 = tou_tre_zrho[z=26.5:27.0@ave]
+let tou_std_zrho_26p5_27p0 = tou_std_zrho[z=26.5:27.0@ave]
+let tou_s2n_zrho_26p5_27p0 = tou_s2n_zrho[z=26.5:27.0@ave]
+let tou_tre_zrho_27p0_27p4 = tou_tre_zrho[z=27.0:27.4@ave]
+let tou_std_zrho_27p0_27p4 = tou_std_zrho[z=27.0:27.4@ave]
+let tou_s2n_zrho_27p0_27p4 = tou_s2n_zrho[z=27.0:27.4@ave]
+let aou_tre_zrho_26p0_26p5 = aou_tre_zrho[z=26.0:26.5@ave]
+let aou_std_zrho_26p0_26p5 = aou_std_zrho[z=26.0:26.5@ave]
+let aou_s2n_zrho_26p0_26p5 = aou_s2n_zrho[z=26.0:26.5@ave]
+let aou_tre_zrho_26p5_27p0 = aou_tre_zrho[z=26.5:27.0@ave]
+let aou_std_zrho_26p5_27p0 = aou_std_zrho[z=26.5:27.0@ave]
+let aou_s2n_zrho_26p5_27p0 = aou_s2n_zrho[z=26.5:27.0@ave]
+let aou_tre_zrho_27p0_27p4 = aou_tre_zrho[z=27.0:27.4@ave]
+let aou_std_zrho_27p0_27p4 = aou_std_zrho[z=27.0:27.4@ave]
+let aou_s2n_zrho_27p0_27p4 = aou_s2n_zrho[z=27.0:27.4@ave]
+let wma_tre_zrho_26p0_26p5 = wma_tre_zrho[z=26.0:26.5@ave]
+let wma_std_zrho_26p0_26p5 = wma_std_zrho[z=26.0:26.5@ave]
+let wma_s2n_zrho_26p0_26p5 = wma_s2n_zrho[z=26.0:26.5@ave]
+let wma_tre_zrho_26p5_27p0 = wma_tre_zrho[z=26.5:27.0@ave]
+let wma_std_zrho_26p5_27p0 = wma_std_zrho[z=26.5:27.0@ave]
+let wma_s2n_zrho_26p5_27p0 = wma_s2n_zrho[z=26.5:27.0@ave]
+let wma_tre_zrho_27p0_27p4 = wma_tre_zrho[z=27.0:27.4@ave]
+let wma_std_zrho_27p0_27p4 = wma_std_zrho[z=27.0:27.4@ave]
+let wma_s2n_zrho_27p0_27p4 = wma_s2n_zrho[z=27.0:27.4@ave]
+let dem_tre_zrho_26p0_26p5 = dem_tre_zrho[z=26.0:26.5@ave]
+let dem_std_zrho_26p0_26p5 = dem_std_zrho[z=26.0:26.5@ave]
+let dem_s2n_zrho_26p0_26p5 = dem_s2n_zrho[z=26.0:26.5@ave]
+let dem_tre_zrho_26p5_27p0 = dem_tre_zrho[z=26.5:27.0@ave]
+let dem_std_zrho_26p5_27p0 = dem_std_zrho[z=26.5:27.0@ave]
+let dem_s2n_zrho_26p5_27p0 = dem_s2n_zrho[z=26.5:27.0@ave]
+let dem_tre_zrho_27p0_27p4 = dem_tre_zrho[z=27.0:27.4@ave]
+let dem_std_zrho_27p0_27p4 = dem_std_zrho[z=27.0:27.4@ave]
+let dem_s2n_zrho_27p0_27p4 = dem_s2n_zrho[z=27.0:27.4@ave]
+
+
+
+save/append/file="figure_signal_to_noise.nc" oxy_tre_zrho_26p0_26p5, oxy_std_zrho_26p0_26p5, oxy_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" oxy_tre_zrho_26p5_27p0, oxy_std_zrho_26p5_27p0, oxy_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" oxy_tre_zrho_27p0_27p4, oxy_std_zrho_27p0_27p4, oxy_s2n_zrho_27p0_27p4
+save/append/file="figure_signal_to_noise.nc" ao2_tre_zrho_26p0_26p5, ao2_std_zrho_26p0_26p5, ao2_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" ao2_tre_zrho_26p5_27p0, ao2_std_zrho_26p5_27p0, ao2_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" ao2_tre_zrho_27p0_27p4, ao2_std_zrho_27p0_27p4, ao2_s2n_zrho_27p0_27p4
+save/append/file="figure_signal_to_noise.nc" sat_tre_zrho_26p0_26p5, sat_std_zrho_26p0_26p5, sat_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" sat_tre_zrho_26p5_27p0, sat_std_zrho_26p5_27p0, sat_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" sat_tre_zrho_27p0_27p4, sat_std_zrho_27p0_27p4, sat_s2n_zrho_27p0_27p4
+save/append/file="figure_signal_to_noise.nc" tou_tre_zrho_26p0_26p5, tou_std_zrho_26p0_26p5, tou_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" tou_tre_zrho_26p5_27p0, tou_std_zrho_26p5_27p0, tou_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" tou_tre_zrho_27p0_27p4, tou_std_zrho_27p0_27p4, tou_s2n_zrho_27p0_27p4
+save/append/file="figure_signal_to_noise.nc" aou_tre_zrho_26p0_26p5, aou_std_zrho_26p0_26p5, aou_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" aou_tre_zrho_26p5_27p0, aou_std_zrho_26p5_27p0, aou_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" aou_tre_zrho_27p0_27p4, aou_std_zrho_27p0_27p4, aou_s2n_zrho_27p0_27p4
+save/append/file="figure_signal_to_noise.nc" wma_tre_zrho_26p0_26p5, wma_std_zrho_26p0_26p5, wma_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" wma_tre_zrho_26p5_27p0, wma_std_zrho_26p5_27p0, wma_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" wma_tre_zrho_27p0_27p4, wma_std_zrho_27p0_27p4, wma_s2n_zrho_27p0_27p4
+save/append/file="figure_signal_to_noise.nc" dem_tre_zrho_26p0_26p5, dem_std_zrho_26p0_26p5, dem_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" dem_tre_zrho_26p5_27p0, dem_std_zrho_26p5_27p0, dem_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" dem_tre_zrho_27p0_27p4, dem_std_zrho_27p0_27p4, dem_s2n_zrho_27p0_27p4
+
+
+message
+
+can data/all
+can var/all
+can reg/all
+
+use ETOPO_o2_ito_1975-2014.nc
+
+
+define axis/t=1:40:1 tax
+let oxy_ito = o2_ito[gt=tax@asn] 
+
+
+let ny = 40
+
+let oxy_ito_tre = (oxy_ito[t=31:40@ave] - oxy_ito[t=1:10@ave])/30.0
+let oxy_ito_err = (oxy_ito_tre*t[gt=tax] + oxy_ito[t=1:10@ave]) - oxy_ito
+let oxy_ito_std = oxy_ito_err[l=@std]
+let oxy_ito_s2n = (ny*oxy_ito_tre) / oxy_ito_std
+
+set reg/k=20
+set win/aspect=0.65/size=1.5 1
+set vi ul; sha/lev=(-inf)(-0.5,0.5,0.1)(inf)/pal=blue_orange oxy_ito_tre; go fland 
+set vi ur; sha/lev=(-inf)(-5,5,1)(inf)/pal=blue_orange oxy_ito_err[l=20]; go fland
+set vi ll; sha/lev=(0,10,1)(inf) oxy_ito_std; go fland
+set vi lr; sha/lev=(-inf)(-5,5,1)(inf)/pal=blue_orange oxy_ito_s2n; cont/o/lev=(-1)(1); go fland
+can reg/k
+
+
+save/append/file="figure_signal_to_noise.nc" oxy_ito_tre, oxy_ito_std, oxy_ito_s2n
+
+
+can data/all
+can var/all
+can reg/all
+
+
+use figure_signal_to_noise.nc
+use woa18_tem_decave.nc
+use woa18_sal_decave.nc
+
+
+define grid/like=oxy_ito_tre[d=1] modgrd
+let tem = t_an[d=2,gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave,l=1]
+let sal = s_an[d=3,gx=modgrd@ave,gy=modgrd@ave,gz=modgrd@ave,l=1]
+
+
+let rho = rho_un(sal,tem,0)-1000
+define axis/z=25.0:28.0:0.05 rhoax
+
+
+let oxy_ito_tre_zrho = zaxreplace(oxy_ito_tre[d=1],rho[l=1],z[gz=rhoax])
+let oxy_ito_std_zrho = zaxreplace(oxy_ito_std[d=1],rho[l=1],z[gz=rhoax])
+let oxy_ito_s2n_zrho = zaxreplace(oxy_ito_s2n[d=1],rho[l=1],z[gz=rhoax])
+
+let oxy_ito_tre_zrho_26p0_26p5 = oxy_ito_tre_zrho[z=26.0:26.5@ave]
+let oxy_ito_std_zrho_26p0_26p5 = oxy_ito_std_zrho[z=26.0:26.5@ave]
+let oxy_ito_s2n_zrho_26p0_26p5 = oxy_ito_s2n_zrho[z=26.0:26.5@ave]
+let oxy_ito_tre_zrho_26p5_27p0 = oxy_ito_tre_zrho[z=26.5:27.0@ave]
+let oxy_ito_std_zrho_26p5_27p0 = oxy_ito_std_zrho[z=26.5:27.0@ave]
+let oxy_ito_s2n_zrho_26p5_27p0 = oxy_ito_s2n_zrho[z=26.5:27.0@ave]
+let oxy_ito_tre_zrho_27p0_27p4 = oxy_ito_tre_zrho[z=27.0:27.4@ave]
+let oxy_ito_std_zrho_27p0_27p4 = oxy_ito_std_zrho[z=27.0:27.4@ave]
+let oxy_ito_s2n_zrho_27p0_27p4 = oxy_ito_s2n_zrho[z=27.0:27.4@ave]
+
+
+save/append/file="figure_signal_to_noise.nc" oxy_ito_tre_zrho_26p0_26p5, oxy_ito_std_zrho_26p0_26p5, oxy_ito_s2n_zrho_26p0_26p5
+save/append/file="figure_signal_to_noise.nc" oxy_ito_tre_zrho_26p5_27p0, oxy_ito_std_zrho_26p5_27p0, oxy_ito_s2n_zrho_26p5_27p0
+save/append/file="figure_signal_to_noise.nc" oxy_ito_tre_zrho_27p0_27p4, oxy_ito_std_zrho_27p0_27p4, oxy_ito_s2n_zrho_27p0_27p4
+
+

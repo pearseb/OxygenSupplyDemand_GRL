@@ -1,0 +1,74 @@
+set mem/size=5000
+
+can data/all
+can var/all
+can reg/all
+
+set reg/z=200:1000
+
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_ACCESS-ESM1-5_historical_r1i1p1f1_gn_1951-2014.nc"
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_CanESM5_historical_r1i1p2f1_gn_1951-2014.nc"
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_IPSL-CM6A-LR_historical_r1i1p1f1_gn_1951-2014.nc"
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_MIROC-ES2L_historical_r1i1p1f2_gn_1951-2014.nc"
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_1951-2014.nc"
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_MRI-ESM2-0_historical_r1i2p1f1_gn_1951-2014.nc"
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/cmip6/ETOPO_o2_Oyr_UKESM1-0-LL_historical_r1i1p1f2_gn_1951-2014.nc"
+
+define axis/t="14-JUN-1951":"14-JUN-2014":1/units=years tax
+
+let oxy = o2[gt=tax@asn]*1e3
+let oxy_tre = oxy - oxy[l=1:20@ave]
+let oxy_access = oxy_tre[d=1,x=@ave,y=@ave,z=@ave]
+let oxy_canesm = oxy_tre[d=2,x=@ave,y=@ave,z=@ave]
+let oxy_ipsl = oxy_tre[d=3,x=@ave,y=@ave,z=@ave]
+let oxy_miroc = oxy_tre[d=4,x=@ave,y=@ave,z=@ave]
+let oxy_mpi = oxy_tre[d=5,x=@ave,y=@ave,z=@ave]
+let oxy_mri = oxy_tre[d=6,x=@ave,y=@ave,z=@ave]
+let oxy_ukesm = oxy_tre[d=7,x=@ave,y=@ave,z=@ave]
+
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/ETOPO_o2_ito_1950-2016.nc"
+
+let obs = o2[d=8,gt=tax@nrst]
+let obs_tre = obs - obs[l=1:20@ave]
+let oxy_ito = obs_tre[x=@ave,y=@ave,z=@ave]
+
+
+let obs_zave = obs[z=@ave]
+let oxy_zave = oxy[z=@ave]
+
+let oxy_obmask = if obs_zave gt (-1000) then oxy_zave[gt=tax@asn] else 1/0
+let oxy_obmask_tre = oxy_obmask - oxy_obmask[l=1:20@ave]
+let oxy_obmask_access = oxy_obmask_tre[d=1,x=@ave,y=@ave]
+let oxy_obmask_canesm = oxy_obmask_tre[d=2,x=@ave,y=@ave]
+let oxy_obmask_ipsl = oxy_obmask_tre[d=3,x=@ave,y=@ave]
+let oxy_obmask_miroc = oxy_obmask_tre[d=4,x=@ave,y=@ave]
+let oxy_obmask_mpi = oxy_obmask_tre[d=5,x=@ave,y=@ave]
+let oxy_obmask_mri = oxy_obmask_tre[d=6,x=@ave,y=@ave]
+let oxy_obmask_ukesm = oxy_obmask_tre[d=7,x=@ave,y=@ave]
+
+
+use "/mnt/lustre/users/pearseb/NEMO_OUT/analysis_oxygen/ETOPO_JRA55_ndep_1y_oxygen_1958-2019.nc"
+
+define axis/t="14-JUN-1958":"14-JUN-2019":1/units=years tax2
+let jra = if abioo2[d=9,gt=tax2@asn] eq 0 then 1/0 else o2[gt=tax2@asn,d=9]
+let jra_tre = jra - jra[l=1:13@ave]
+let oxy_jra55 = jra_tre[d=1,x=@ave,y=@ave,z=@ave]
+
+let jra_zave = jra[z=@ave]
+let jra_obmask = if obs_zave[l=8:65] gt (-1000) then jra_zave[l=1:58] else 1/0
+let jra_obmask_tre = jra_obmask - jra_obmask[l=1:13@ave]
+let oxy_obmask_jra55 = jra_obmask_tre[d=1,x=@ave,y=@ave]
+
+set win/aspect=0.65 1
+plot/thick=2/color=black oxy_ito
+plot/nolab/nokey/o/thick=0.5/color=black oxy_ito*0
+plot/nolab/nokey/o/thick=1 oxy_access, oxy_canesm, oxy_ipsl, oxy_miroc, oxy_mpi, oxy_mri, oxy_ukesm
+plot/nolab/nokey/o/thick=1/color=red oxy_obmask_access, oxy_obmask_canesm, oxy_obmask_ipsl, oxy_obmask_miroc, oxy_obmask_mpi, oxy_obmask_mri, oxy_obmask_ukesm
+plot/nolab/nokey/o/thick=2/color=blue oxy_jra55
+plot/nolab/nokey/o/thick=2/color=lightblue oxy_obmask_jra55
+
+
+save/clobber/file="cmip6_multimodel_trends.nc" oxy_ito
+save/append/file="cmip6_multimodel_trends.nc" oxy_access, oxy_canesm, oxy_ipsl, oxy_miroc, oxy_mpi, oxy_mri, oxy_ukesm
+save/append/file="cmip6_multimodel_trends.nc" oxy_obmask_access, oxy_obmask_canesm, oxy_obmask_ipsl, oxy_obmask_miroc, oxy_obmask_mpi, oxy_obmask_mri, oxy_obmask_ukesm
+save/append/file="cmip6_multimodel_trends.nc" oxy_jra55, oxy_obmask_jra55 
