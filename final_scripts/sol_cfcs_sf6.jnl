@@ -1,0 +1,58 @@
+
+! define temperature and salinity variables
+let ztemp = ($1)
+let t_rk = (ztemp+273.16)*0.01
+let zsalt = ($2)
+
+
+!!! CFC-11 !!!
+
+! constants
+let A1 = -229.9261
+let A2 =  319.6552
+let A3 =  119.4471
+let A4 =  -1.39165
+let B1 =  -0.142382
+let B2 =   0.091459
+let B3 =  -0.0157274
+
+! solubility calculation
+let sol_cfc11_a = B1 + t_rk * (B2 + t_rk*B3)
+let sol_cfc11_b = exp(A1 + A2/t_rk + A3*ln(t_rk) + A4*t_rk*t_rk + zsalt * sol_cfc11_a)
+let sol_cfc11 = sol_cfc11_b * 1e3 * 1e-12  ! mol/l/atm --> mol/m3/pptv
+
+
+!!! CFC-12 !!!
+
+! constants
+let C1 = -218.0971 
+let C2 = 298.9702
+let C3 = 113.8049
+let C4 = -1.39165
+let D1 = -0.143566
+let D2 = 0.091015
+let D3 = -0.0153924
+
+! solubility calculation
+let sol_cfc12_a = D1 + t_rk * (D2 + t_rk*D3)
+let sol_cfc12_b = exp(C1 + C2/t_rk + C3*ln(t_rk) + C4*t_rk*t_rk + zsalt * sol_cfc12_a)
+let sol_cfc12 = sol_cfc12_b * 1e3 * 1e-12  ! mol/l/atm --> mol/m3/pptv
+
+
+!!! SF6 !!!
+
+! constants
+let E1 = -80.0343 
+let E2 = 117.232
+let E3 = 29.5817
+let E4 = 0.0
+let F1 = 0.0335183
+let F2 = -0.0373942
+let F3 = 0.00774862
+
+! solubility calculation
+let sol_sf6_a = F1 + t_rk * (F2 + t_rk*F3)
+let sol_sf6_b = exp(E1 + E2/t_rk + E3*ln(t_rk) + E4*t_rk*t_rk + zsalt * sol_sf6_a)
+let sol_sf6 = sol_sf6_b * 1e3 * 1e-12  ! mol/l/atm --> mol/m3/pptv
+
+

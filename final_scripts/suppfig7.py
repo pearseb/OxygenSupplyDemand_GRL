@@ -1,172 +1,150 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan 21 13:45:34 2021
+Spyder Editor
 
-Purpose
--------
-    Figure of linear oxygen, TOU and ideal age trends averaged over 26.5-27.0 and
-    27.0-27.4 potential density bounds 
-    (hatching represents where the signal exceeds interannual noise)
-    
-    
-@author: pearseb
+
+make budgets figure
+
 """
 
 #%% imports
-
-from __future__ import unicode_literals
 
 import os
 import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
-import cmocean
-import cmocean.cm as cmo
+from matplotlib.gridspec import GridSpec
 import seaborn as sb
 sb.set(style='ticks')
-
-from matplotlib.gridspec import GridSpec
-import matplotlib.ticker as mticker
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-import cartopy
-import cartopy.crs as ccrs
-
-# for colouring scatter plot according to density of data
-from scipy.stats import gaussian_kde
-
-# for lowess smoothing
-from statsmodels.nonparametric.smoothers_lowess import lowess
 
 
 #%% get data
 
-os.chdir("C://Users//pearseb/Dropbox//PostDoc//my articles//historical model-data deoxygenation//data_for_figures")
+os.chdir("C://Users/pearseb/Dropbox/PostDoc/my articles/historical model-data deoxygenation/data_for_figures")
 
+data = nc.Dataset('figure_budget_regions.nc','r')
 
-data = nc.Dataset("supfigure5.nc", 'r')
-gmoc = data.variables['GMOC'][...]
-amoc = data.variables['AMOC'][...]
-pmoc = data.variables['GMOC'][...]
-imoc = data.variables['GMOC'][...]
-gwma = data.variables['WMA_GLO'][...]
-awma = data.variables['WMA_ATL'][...]
-pwma = data.variables['WMA_PAC'][...]
-iwma = data.variables['WMA_IND'][...]
+ben_tot = data.variables['BENGUELA_TOT_O2_SHFAVE_ZINT'][...]
+ben_bio = data.variables['BENGUELA_BIO_O2_SHFAVE_ZINT'][...]
+ben_phy = data.variables['BENGUELA_PHY_O2_SHFAVE_ZINT'][...]
+ben_adv = data.variables['BENGUELA_ADV_O2_SHFAVE_ZINT'][...]
+ben_hor = data.variables['BENGUELA_HOR_O2_SHFAVE_ZINT'][...]
+ben_ver = data.variables['BENGUELA_VER_O2_SHFAVE_ZINT'][...]
 
-dep = data.variables['DEPTHT'][...]
-lat = data.variables['ETOPO60Y'][...]
+can_tot = data.variables['CANARYATL_TOT_O2_SHFAVE_ZINT'][...]
+can_bio = data.variables['CANARYATL_BIO_O2_SHFAVE_ZINT'][...]
+can_phy = data.variables['CANARYATL_PHY_O2_SHFAVE_ZINT'][...]
+can_adv = data.variables['CANARYATL_ADV_O2_SHFAVE_ZINT'][...]
+can_hor = data.variables['CANARYATL_HOR_O2_SHFAVE_ZINT'][...]
+can_ver = data.variables['CANARYATL_VER_O2_SHFAVE_ZINT'][...]
+
+per_tot = data.variables['PERUCHILE_TOT_O2_SHFAVE_ZINT'][...]
+per_bio = data.variables['PERUCHILE_BIO_O2_SHFAVE_ZINT'][...]
+per_phy = data.variables['PERUCHILE_PHY_O2_SHFAVE_ZINT'][...]
+per_adv = data.variables['PERUCHILE_ADV_O2_SHFAVE_ZINT'][...]
+per_hor = data.variables['PERUCHILE_HOR_O2_SHFAVE_ZINT'][...]
+per_ver = data.variables['PERUCHILE_VER_O2_SHFAVE_ZINT'][...]
+
+cal_tot = data.variables['CALIFORNIA_TOT_O2_SHFAVE_ZINT'][...]
+cal_bio = data.variables['CALIFORNIA_BIO_O2_SHFAVE_ZINT'][...]
+cal_phy = data.variables['CALIFORNIA_PHY_O2_SHFAVE_ZINT'][...]
+cal_adv = data.variables['CALIFORNIA_ADV_O2_SHFAVE_ZINT'][...]
+cal_hor = data.variables['CALIFORNIA_HOR_O2_SHFAVE_ZINT'][...]
+cal_ver = data.variables['CALIFORNIA_VER_O2_SHFAVE_ZINT'][...]
+
+soc_tot = data.variables['SOUTHERNOCEAN_TOT_O2_SHFAVE_ZINT'][...]
+soc_bio = data.variables['SOUTHERNOCEAN_BIO_O2_SHFAVE_ZINT'][...]
+soc_phy = data.variables['SOUTHERNOCEAN_PHY_O2_SHFAVE_ZINT'][...]
+soc_adv = data.variables['SOUTHERNOCEAN_ADV_O2_SHFAVE_ZINT'][...]
+soc_hor = data.variables['SOUTHERNOCEAN_HOR_O2_SHFAVE_ZINT'][...]
+soc_ver = data.variables['SOUTHERNOCEAN_VER_O2_SHFAVE_ZINT'][...]
+
+ona_tot = data.variables['OLIGONA_TOT_O2_SHFAVE_ZINT'][...]
+ona_bio = data.variables['OLIGONA_BIO_O2_SHFAVE_ZINT'][...]
+ona_phy = data.variables['OLIGONA_PHY_O2_SHFAVE_ZINT'][...]
+ona_adv = data.variables['OLIGONA_ADV_O2_SHFAVE_ZINT'][...]
+ona_hor = data.variables['OLIGONA_HOR_O2_SHFAVE_ZINT'][...]
+ona_ver = data.variables['OLIGONA_VER_O2_SHFAVE_ZINT'][...]
+
+onp_tot = data.variables['OLIGONP_TOT_O2_SHFAVE_ZINT'][...]
+onp_bio = data.variables['OLIGONP_BIO_O2_SHFAVE_ZINT'][...]
+onp_phy = data.variables['OLIGONP_PHY_O2_SHFAVE_ZINT'][...]
+onp_adv = data.variables['OLIGONP_ADV_O2_SHFAVE_ZINT'][...]
+onp_hor = data.variables['OLIGONP_HOR_O2_SHFAVE_ZINT'][...]
+onp_ver = data.variables['OLIGONP_VER_O2_SHFAVE_ZINT'][...]
+
+ben = np.array([ben_tot, ben_bio, ben_phy, ben_adv, ben_hor, ben_ver])
+can = np.array([can_tot, can_bio, can_phy, can_adv, can_hor, can_ver])
+per = np.array([per_tot, per_bio, per_phy, per_adv, per_hor, per_ver])
+cal = np.array([cal_tot, cal_bio, cal_phy, cal_adv, cal_hor, cal_ver])
+soc = np.array([soc_tot, soc_bio, soc_phy, soc_adv, soc_hor, soc_ver])
+ona = np.array([ona_tot, ona_bio, ona_phy, ona_adv, ona_hor, ona_ver])
+onp = np.array([onp_tot, onp_bio, onp_phy, onp_adv, onp_hor, onp_ver])
+
 
 data.close()
 
 
-#%% get differences in MOC and age
+#%% what are the relative changes (demand : supply)
 
-gmoc_ave = np.ma.average(gmoc[3:42,:,:],axis=0)
-amoc_ave = np.ma.average(amoc[3:42,:,:],axis=0)
-pmoc_ave = np.ma.average(pmoc[3:42,:,:],axis=0)
-imoc_ave = np.ma.average(imoc[3:42,:,:],axis=0)
-
-gwma_ave = np.ma.average(gwma[3:42,:,:],axis=0)
-awma_ave = np.ma.average(awma[3:42,:,:],axis=0)
-pwma_ave = np.ma.average(pwma[3:42,:,:],axis=0)
-iwma_ave = np.ma.average(iwma[3:42,:,:],axis=0)
-
-gmoc_dif = (np.ma.average(gmoc[33:42,:,:],axis=0) - np.ma.average(gmoc[3:12,:,:],axis=0))/30.*10
-amoc_dif = (np.ma.average(amoc[33:42,:,:],axis=0) - np.ma.average(amoc[3:12,:,:],axis=0))/30.*10
-pmoc_dif = (np.ma.average(pmoc[33:42,:,:],axis=0) - np.ma.average(pmoc[3:12,:,:],axis=0))/30.*10
-imoc_dif = (np.ma.average(imoc[33:42,:,:],axis=0) - np.ma.average(imoc[3:12,:,:],axis=0))/30.*10
-
-gwma_dif = (np.ma.average(gwma[33:42,:,:],axis=0) - np.ma.average(gwma[3:12,:,:],axis=0))/30.*10
-awma_dif = (np.ma.average(awma[33:42,:,:],axis=0) - np.ma.average(awma[3:12,:,:],axis=0))/30.*10
-pwma_dif = (np.ma.average(pwma[33:42,:,:],axis=0) - np.ma.average(pwma[3:12,:,:],axis=0))/30.*10
-iwma_dif = (np.ma.average(iwma[33:42,:,:],axis=0) - np.ma.average(iwma[3:12,:,:],axis=0))/30.*10
+print("Benguela bio:sup = ",abs(ben_bio) / abs(ben_phy))
+print("Canary bio:sup = ",abs(can_bio) / abs(can_phy))
+print("Humboldt bio:sup = ",abs(per_bio) / abs(per_phy))
+print("California bio:sup = ",abs(cal_bio) / abs(cal_phy))
 
 
-#%% figure specifics 
+#%% make figure
 
-fslab = 15
+
 fstic = 13
-lw = 0.75
-gridalf = 0.5
+fslab = 15
 
-colmap5 = cmocean.tools.lighten(cmo.balance, 0.8)
-levs5 = np.arange(-20,21,2)
-cont5 = np.arange(0,1001,50)
+col = ['k', 'royalblue', 'firebrick', 'firebrick', 'firebrick', 'firebrick']
+alf = [0.8, 0.8, 0.8, 0.5, 0.5, 0.5]
+edc  = ['k', 'k', 'k', 'k', 'k', 'k']
+lwi = [1,1,1,0.5,0.5,0.5]
+zor = [1,1,1,1,1,1]
+wid= [1,1,1,1,1,1]
+lab = ['$\Delta$O$_2$', '$\Delta$O$_2^{bio}$', '$\Delta$O$_2^{phy}$', '$\Delta$O$_2^{adv}$', '$\Delta$O$_2^{hdf}$', '$\Delta$O$_2^{vdf}$']
+hat = ['', '', '', '...', '---', '///']
 
-colmap6 = cmocean.tools.lighten(cmo.balance, 0.8)
-levs6 = np.arange(-10,11,2)*0.1
-cont6 = np.array([-10,-5,-2,-1,-0.5,-0.2,0.0,0.2,0.5,1,2,5,10])
-
-
-contcol = 'black'
-contwid = 0.75
-alf = 0.8
+fig = plt.figure(figsize=(10,6), facecolor='w')
+gs = GridSpec(1,1)
 
 
-lat_labs1 = ['80$^{\circ}$S', '60$^{\circ}$S', '40$^{\circ}$S', '20$^{\circ}$S', 'Eq ']
+ax1 = plt.subplot(gs[0])
+ax1.tick_params(labelsize=fstic, bottom=False, labelbottom=False)
+ax1.spines['bottom'].set_visible(False)
+ax1.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
 
+plt.plot((0,26.5),(0,0), 'k--', linewidth=0.5, zorder=1)
 
-#%% make figure 
+for i in np.arange(0,6):
+    plt.bar(i, ben[i], facecolor=col[i], alpha=alf[i], edgecolor=edc[i], linewidth=lwi[i], zorder=zor[i], width=wid[i], hatch=hat[i])
+    plt.bar(i+7, can[i], facecolor=col[i], alpha=alf[i], edgecolor=edc[i], linewidth=lwi[i], zorder=zor[i], width=wid[i], hatch=hat[i])
+    plt.bar(i+14, per[i], facecolor=col[i], alpha=alf[i], edgecolor=edc[i], linewidth=lwi[i], zorder=zor[i], width=wid[i], hatch=hat[i])
+    plt.bar(i+21, cal[i], facecolor=col[i], alpha=alf[i], edgecolor=edc[i], linewidth=lwi[i], zorder=zor[i], width=wid[i], hatch=hat[i], label=lab[i])
+    #plt.bar(i+28, soc[i], facecolor=col[i], alpha=alf[i], edgecolor=edc[i], linewidth=lwi[i], zorder=zor[i], width=wid[i], hatch=hat[i], label=lab[i])
 
+plt.ylim(-60,60)
+plt.xlim(-1,27)
 
-fig = plt.figure(figsize=(12,3.5))
-gs = GridSpec(1,2)
+plt.legend(frameon=False, ncol=6, loc='lower center')
 
+plt.text(2,65, 'Benguela\nupwelling', transform=ax1.transData, va='center', ha='center', rotation=45, fontsize=fslab)
+plt.text(9,65, 'Canary\nupwelling', transform=ax1.transData, va='center', ha='center', rotation=45, fontsize=fslab)
+plt.text(16,65, 'Peru/Chile\nupwelling', transform=ax1.transData, va='center', ha='center', rotation=45, fontsize=fslab)
+plt.text(23,65, 'California\nupwelling', transform=ax1.transData, va='center', ha='center', rotation=45, fontsize=fslab)
+#plt.text(30,65, 'Southern\nOcean', transform=ax1.transData, va='center', ha='center', rotation=45, fontsize=fslab)
 
-lats, deps = np.meshgrid(lat,dep)
-
-ax1 = plt.subplot(gs[0,0])
-ax1.tick_params(labelsize=fstic)
-p1 = plt.contourf(lats,deps, gmoc_ave, cmap=colmap5, levels=levs5, vmin=np.min(levs5), vmax=np.max(levs5), extend='both')
-c1 = plt.contour(lats,deps, gwma_ave, colors=contcol, linewidths=contwid, levels=cont5)
-plt.ylim(1200,10)
-plt.xlim(-80,0)
-plt.xticks(np.arange(-80,1,20), lat_labs1)
-
-ax2 = plt.subplot(gs[0,1])
-ax2.tick_params(labelsize=fstic, labelleft=False)
-p2 = plt.contourf(lats,deps, gmoc_dif, cmap=colmap6, levels=levs6, vmin=np.min(levs6), vmax=np.max(levs6), extend='both')
-c2 = plt.contour(lats,deps, gwma_dif, colors=contcol, linewidths=contwid, levels=cont6)
-plt.ylim(1200,10)
-plt.xlim(-80,0)
-plt.xticks(np.arange(-80,1,20), lat_labs1)
-
-
-
-fig.subplots_adjust(top=0.9, bottom=0.1, left=0.15, right=0.875, wspace=0.1, hspace=0.1)
-
-
-xx = 0.5; yy = 1.05
-plt.text(xx, yy, 'Global Meridional Overturning', fontsize=fslab, transform=ax1.transAxes, va='center', ha='center')
-plt.text(xx, yy, 'trend (2005-2014 minus 1975-1984)', fontsize=fslab, transform=ax2.transAxes, va='center', ha='center')
-
-
-xx = 0.025; yy = 1.05
-plt.text(xx, yy, 'a', fontsize=fslab+2, transform=ax1.transAxes, va='center', ha='center', fontweight='bold')
-plt.text(xx, yy, 'b', fontsize=fslab+2, transform=ax2.transAxes, va='center', ha='center', fontweight='bold')
-
-
-
-cbax5 = fig.add_axes([0.075, 0.15, 0.025, 0.7])
-cbar5 = plt.colorbar(p1, cax=cbax5, orientation='vertical', ticks=levs5[::2])
-cbax5.set_ylabel('overturning (Sv)', fontsize=fstic)
-cbax5.tick_params(labelsize=fstic, right=False, labelright=False, left=True, labelleft=True)
-cbax5.yaxis.set_label_position('left')
-
-cbax6 = fig.add_axes([0.89, 0.15, 0.025, 0.7])
-cbar6 = plt.colorbar(p2, cax=cbax6, orientation='vertical', ticks=levs6[::2])
-cbax6.set_ylabel('$\Delta$ (Sv decade$^{-1}$)', fontsize=fstic)
-cbax6.tick_params(labelsize=fstic)
-
+plt.ylabel('$\Delta$O$_2$ (mmol m$^{-2}$ year$^{-1}$)', fontsize=fslab)
 
 
 #%% save figure
 
-plt.clabel(c1, fmt='%i', manual=True, fontsize=fstic-2)
-plt.clabel(c2, fmt='%.1f', manual=True, fontsize=fstic-2)
-
-
-os.chdir("C://Users//pearseb/Dropbox//PostDoc//my articles//historical model-data deoxygenation//final_figures")
+os.chdir("C://Users/pearseb/Dropbox/PostDoc/my articles/historical model-data deoxygenation/final_figures")
 fig.savefig('fig-suppfig7.png', dpi=300, bbox_inches='tight')
 fig.savefig('fig-suppfig7_trans.png', dpi=300, bbox_inches='tight', transparent=True)
+
 

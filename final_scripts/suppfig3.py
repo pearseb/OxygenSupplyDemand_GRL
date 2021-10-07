@@ -1,26 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan 21 13:45:34 2021
+Created on Tue Mar  2 10:39:44 2021
 
 Purpose
 -------
-    
-    
+    Create figure of change in the b-value of the Martin curve, which has been 
+    derived from the vertical profile of POC
+
+
 @author: pearseb
 """
 
 #%% imports
 
-from __future__ import unicode_literals
-
 import os
 import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
-import cmocean
-import cmocean.cm as cmo
+from matplotlib.gridspec import GridSpec
 import seaborn as sb
 sb.set(style='ticks')
+
+import cmocean
+import cmocean.cm as cmo
 
 from matplotlib.gridspec import GridSpec
 import matplotlib.ticker as mticker
@@ -28,96 +30,86 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import cartopy
 import cartopy.crs as ccrs
 
-from scipy.optimize import curve_fit
-
 
 #%% get data
 
-os.chdir("C://Users//pearseb/Dropbox//PostDoc//my articles//historical model-data deoxygenation//data_for_figures")
+os.chdir("C://Users/pearseb/Dropbox/PostDoc/my articles/historical model-data deoxygenation/data_for_figures")
 
-data = nc.Dataset("figure3.nc", 'r')
-
-tou_jra55 = np.ma.squeeze(data.variables['TOU_TRE_MASK'][...])*800     # TOU (mmol O2 / m2 per decade)
-npp_jra55 = np.ma.squeeze(data.variables['NPP_TRE_MASK'][...])     # net primary production (gC/m2 per decade)
-bex_jra55 = np.ma.squeeze(data.variables['BEX_TRE_MASK'][...])     # b exponent of Martin Curve (per decade)
-dem_jra55 = np.ma.squeeze(data.variables['RDEM_TRE_MASK'][...])*800    # biological oxygen demand (mmol O2 /m2 per decade)
+data = nc.Dataset("ETOPO_JRA55_ndep_oxy200trend.nc",'r')
+oxy_75s = data.variables['OXY200_75S'][...]
+oxy_80s = data.variables['OXY200_80S'][...]
 
 lon = data.variables['ETOPO60X'][...]
 lat = data.variables['ETOPO60Y'][...]
 
+
 data.close()
 
 
-#%% figure specifics 
+
+#%% figure specifics
 
 fslab = 15
 fstic = 13
 lw = 0.75
 gridalf = 0.5
 
+colmap1 = cmocean.tools.lighten(cmo.balance, 0.8)
+levs1 = np.arange(-40, 41, 4)*0.1
+
+
 contcol = 'black'
-contwid = 0.5
+contwid=0.75
+
+proj = ccrs.Robinson(central_longitude=200)
+lons,lats = np.meshgrid(lon,lat)
 
 
-alf = 0.2
-col = 'grey'
-mar = 'o'
-edc = 'k'
-liw = 0.5
-zor = 1
 
-cols=['royalblue', 'goldenrod', 'firebrick']
-
-
-x1a=-50;x2a=50
-y1a=-250;y2a=250
-
-x1b=-250;x2b=250
-y1b=-1500;y2b=1500
-
-
-zerocol='k'
-zerosty='--'
-zerowid=0.75
-zerozor=5
-
-onecol='k'
-onesty='-'
-onewid=1.5
-onezor=5
-
-
-#%% make figure
+#%% figure
 
 fig = plt.figure(figsize=(8,8))
-gs = GridSpec(1,1)
+gs = GridSpec(2,1)
 
-ax1 = plt.subplot(gs[0])
-ax1.spines['top'].set_visible(False)
-ax1.spines['right'].set_visible(False)
+ax1 = plt.subplot(gs[0,0], projection=proj)
 ax1.tick_params(labelsize=fstic)
-plt.scatter(np.ma.compressed(npp_jra55), np.ma.compressed(dem_jra55), color=col, alpha=alf, zorder=zor, marker=mar, edgecolor=edc, linewidth=liw)
+ax1.gridlines(linestyle='--', linewidth=0.5, color='grey', alpha=gridalf, zorder=3)
+ax1.add_feature(cartopy.feature.LAND, zorder=1, facecolor='silver')
+ax1.coastlines()
+p1 = plt.contourf(lons, lats, oxy_75s, transform=ccrs.PlateCarree(), cmap=colmap1, levels=levs1, vmin=np.min(levs1),vmax=np.max(levs1), zorder=1, extend='both')
+c1 = plt.contour(lons, lats, oxy_75s, transform=ccrs.PlateCarree(), levels=[0], zorder=2, colors=contcol, linewidths=contwid)
 
-def linear(x,a,b):
-    return a*x + b
+ax2 = plt.subplot(gs[1,0], projection=proj)
+ax2.tick_params(labelsize=fstic)
+ax2.gridlines(linestyle='--', linewidth=0.5, color='grey', alpha=gridalf, zorder=3)
+ax2.add_feature(cartopy.feature.LAND, zorder=1, facecolor='silver')
+ax2.coastlines()
+p2 = plt.contourf(lons, lats, oxy_80s, transform=ccrs.PlateCarree(), cmap=colmap1, levels=levs1, vmin=np.min(levs1),vmax=np.max(levs1), zorder=1, extend='both')
+c2 = plt.contour(lons, lats, oxy_80s, transform=ccrs.PlateCarree(), levels=[0], zorder=2, colors=contcol, linewidths=contwid)
 
-popt,pcov = curve_fit(linear, np.ma.compressed(npp_jra55), np.ma.compressed(dem_jra55))
-r2 = np.corrcoef(np.ma.compressed(npp_jra55),np.ma.compressed(dem_jra55))[0,1]**2
-plt.plot(np.linspace(x1a,x2a,100),linear(np.linspace(x1a,x2a,100), popt[0], popt[1]), color='k', linestyle=onesty, linewidth=onewid, zorder=onezor)
+fig.subplots_adjust(top=0.825, bottom=0.025, left=0.05, right=0.95, hspace=0.15)
 
-plt.text(0.25,0.85, 'r$^2$ = %.2f'%(r2), fontsize=fslab, transform=ax1.transAxes, va='center', ha='center')
-plt.text(0.25,0.75, 'slope = %.2f $\pm$ %.2f'%(popt[0], np.sqrt(np.diag(pcov))[0]), fontsize=fslab, transform=ax1.transAxes, va='center', ha='center')
 
-plt.plot((x1a,x2a),(0,0), color=zerocol, linestyle=zerosty, linewidth=zerowid, zorder=zerozor)
-plt.plot((0,0),(y1a,y2a), color=zerocol, linestyle=zerosty, linewidth=zerowid, zorder=zerozor)
-plt.ylim(y1a,y2a); plt.xlim(x1a,x2a)
-plt.ylabel('$\Delta$ mesopelagic demand\n($\mu$M O$_2$ m$^{-2}$ decade$^{-1}$)', fontsize=fslab)
-plt.xlabel('$\Delta$ depth-integrated NPP\n(g C m$^{-2}$ decade$^{-1}$)', fontsize=fslab)
+xx = 0.5; yy = 1.05
+plt.text(xx, yy, '2005-2014 minus 1975-1984', fontsize=fslab, transform=ax1.transAxes, va='center', ha='center', fontweight='bold')
+plt.text(xx, yy, '2005-2014 minus 1980-1989', fontsize=fslab, transform=ax2.transAxes, va='center', ha='center', fontweight='bold')
 
-plt.subplots_adjust(left=0.175, bottom=0.175)
+xx = 0.05; yy = 0.95
+plt.text(xx, yy, 'a', fontsize=fslab+2, transform=ax1.transAxes, va='center', ha='center', fontweight='bold')
+plt.text(xx, yy, 'b', fontsize=fslab+2, transform=ax2.transAxes, va='center', ha='center', fontweight='bold')
+
+
+cbax1 = fig.add_axes([0.2, 0.88, 0.6, 0.03])
+cbar1 = plt.colorbar(p1, cax=cbax1, orientation='horizontal', ticks=levs1[::2])
+cbax1.tick_params(labelsize=fstic, top=True, labeltop=True, bottom=False, labelbottom=False)
+cbax1.set_xlabel("$\Delta$ O$_2$ ($\mu$M decade$^{-1}$)", fontsize=fslab)
+cbax1.xaxis.set_label_position('top')
+
 
 #%% save figure
 
 os.chdir("C://Users//pearseb/Dropbox//PostDoc//my articles//historical model-data deoxygenation//final_figures")
 fig.savefig('fig-suppfig3.png', dpi=300, bbox_inches='tight')
 fig.savefig('fig-suppfig3_trans.png', dpi=300, bbox_inches='tight', transparent=True)
+
+
